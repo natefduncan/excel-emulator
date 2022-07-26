@@ -1,0 +1,12 @@
+[package]
+name = "parse"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs" # LALRPOP preprocessing
+
+[dependencies]
+lalrpop-util = { version = "^0.19", features = ["lexer"] }
+regex = "1"
+
+[build-dependencies]
+lalrpop = "0.19.7"
