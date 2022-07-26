@@ -75,7 +75,14 @@ pub mod ast {
 mod tests {
     use crate::excel::*; 
     fn parse_expr(expr: &str) -> String {
+        println!("{}", expr); 
         format!("{}", ExprParser::new().parse(expr).unwrap())
+    }
+
+    #[test]
+    fn test_num() {
+        assert_eq!(&parse_expr(" 1 "), "1"); 
+        assert_eq!(&parse_expr(" 150 "), "150"); 
     }
 
     #[test]
