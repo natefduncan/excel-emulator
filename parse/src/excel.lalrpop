@@ -1,10 +1,47 @@
 use std::str::FromStr;
+use crate::ast::{Expr, Opcode}; 
 
 grammar;
 
-pub Term: i32 = {
-    <n:Num> => n,
-    "(" <t:Term> ")" => t,
+Tier<Op,NextTier>: Box<Expr> = {
+    Tier<Op,NextTier> Op NextTier => Box::new(Expr::Op(<>)),
+    NextTier
 };
 
-Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+pub Expr = Tier<ExprOp, Factor>;
+Factor = Tier<FactorOp, SingleComparison>;
+SingleComparison = Tier<SingleComparisonOp, MultiComparison>; 
+MultiComparison = Tier<MultiComparisonOp, Term>; 
+
+ExprOp: Opcode = { 
+    "+" => Opcode::Add,
+    "-" => Opcode::Subtract,
+};
+
+FactorOp: Opcode = {
+    "*" => Opcode::Multiply,
+    "/" => Opcode::Divide,
+	"^" => Opcode::Exponent,
+	"&" => Opcode::Concat,
+};
+
+SingleComparisonOp: Opcode = {
+	"=" => Opcode::Equal, 
+	"<" => Opcode::LessThan,
+	">" => Opcode::GreaterThan,
+}; 
+
+MultiComparisonOp: Opcode = {
+	"<>" => Opcode::NotEqual,
+	"<=" => Opcode::LessThanOrEqual,
+	">=" => Opcode::GreatThanOrEqual 
+}; 
+
+Term: Box<Expr> = {
+    Num => Box::new(Expr::Num(<>)),
+    "(" <Expr> ")"
+};
+
+Num: i32 = {
+    r"[0-9]+" => i32::from_str(<>).unwrap()
+};
