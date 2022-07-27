@@ -49,28 +49,29 @@ Err: Error = {
 	"#GETTING_DATA" => Error::GettingData 
 }
 
-Term: Box<Expr> = {
-    Num => Box::new(Expr::Num(<>)),
-	Err => Box::new(Expr::Error(<>)), 
-	Cell => Box::new(Expr::Cell(<>)), 
-	Bool => Box::new(Expr::Bool(<>)), 
-    "(" <Expr> ")"
-};
-
 Cell: String = {
 	r"(('[^/\\?*\[\]]{1,31}'|[A-Za-z0-9_]{1,31})!)?((\$?[A-Za-z]{1,3})(\$?[0-9]{1,6}))" => (<>).to_string()
 }
 
+Text: String = {
+	"\"" <r"[a-zA-Z]+"> "\"" => (<>).to_string(), 
+	"'" <r"[a-zA-Z]+"> "'" => (<>).to_string()
+}
+
 Bool: bool = {
-	r"TRUE|FALSE" => {
-		if <> == "TRUE" {
-			true
-		} else {
-			false
-		}
-	}
+	"TRUE" => true, 
+	"FALSE" => false
 }
 
 Num: f32 = {
     r"[+-]?([0-9]*[.])?[0-9]+" => f32::from_str(<>).unwrap()
+};
+
+Term: Box<Expr> = {
+    Num => Box::new(Expr::Num(<>)),
+	Err => Box::new(Expr::Error(<>)), 
+	Bool => Box::new(Expr::Bool(<>)), 
+	Text => Box::new(Expr::Text(<>)), 
+	Cell => Box::new(Expr::Cell(<>)), 
+    "(" <Expr> ")"
 };

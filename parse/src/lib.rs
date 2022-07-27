@@ -11,6 +11,7 @@ pub mod ast {
         Error(Error), 
         Cell(String), 
         Op(Box<Expr>, Opcode, Box<Expr>),
+        Text(String), 
     }
 
     impl fmt::Display for Expr {
@@ -34,7 +35,11 @@ pub mod ast {
                 }, 
                 Expr::Error(e) => {
                     write!(f, "{}", e)
+                }, 
+                Expr::Text(s) => {
+                    write!(f, "{}", s )
                 }
+
             }
         }
     }
@@ -164,5 +169,10 @@ mod tests {
     fn test_bool() {
         assert_eq!(&parse_expr(" TRUE "), "TRUE"); 
         assert_eq!(&parse_expr(" FALSE "), "FALSE"); 
+    }
+
+    #[test]
+    fn test_text() {
+        assert_eq!(&parse_expr(" \" TEST \" "), "TEST");
     }
 }
