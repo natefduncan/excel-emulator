@@ -49,6 +49,22 @@ Err: Error = {
 	"#GETTING_DATA" => Error::GettingData 
 }
 
+Comma<T>: Vec<T> = { 
+    <mut v:(<T> ",")*> <e:T?> => match e { 
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+FunctionArgs = Comma<Expr>; 
+
+Function: Box<Expr> = {
+	<name:r"[a-zA-Z]+"> "(" <args:FunctionArgs> ")" => Box::new(Expr::Func { name: name.to_string(), args })
+}
+
 Cell: String = {
 	r"(('[^/\\?*\[\]]{1,31}'|[A-Za-z0-9_]{1,31})!)?((\$?[A-Za-z]{1,3})(\$?[0-9]{1,6}))" => (<>).to_string()
 }
@@ -73,5 +89,6 @@ Term: Box<Expr> = {
 	Bool => Box::new(Expr::Bool(<>)), 
 	Text => Box::new(Expr::Text(<>)), 
 	Cell => Box::new(Expr::Cell(<>)), 
+	Function => <>, 
     "(" <Expr> ")"
 };

@@ -12,6 +12,8 @@ pub mod ast {
         Cell(String), 
         Op(Box<Expr>, Opcode, Box<Expr>),
         Text(String), 
+        Array(Vec<Box<Expr>>), 
+        Func { name: String, args: Vec<Box<Expr>> }
     }
 
     impl fmt::Display for Expr {
@@ -37,7 +39,27 @@ pub mod ast {
                     write!(f, "{}", e)
                 }, 
                 Expr::Text(s) => {
-                    write!(f, "{}", s )
+                    write!(f, "\"{}\"", s )
+                }, 
+                Expr::Func {name, args}  => {
+                    let mut output: String = format!("{}(", name);
+                    for (i, arg) in args.iter().enumerate() {
+                        if i != 0 {
+                            output = format!("{}, {}", output, arg); 
+                        } else {
+                            output = format!("{}{}", output, arg); 
+                        }
+                    }
+                    output = format!("{})", output); 
+                    write!(f, "{}", output) 
+                }, 
+                Expr::Array(arr) => {
+                    let mut output: String = String::from("{"); 
+                    for x in arr.iter() {
+                        output = format!("{}, {}", output, x); 
+                    }
+                    output = format!("{}}}", output); 
+                    write!(f, "{}", output)
                 }
 
             }
@@ -173,6 +195,11 @@ mod tests {
 
     #[test]
     fn test_text() {
-        assert_eq!(&parse_expr(" \" TEST \" "), "TEST");
+        assert_eq!(&parse_expr(" \" TEST \" "), "\"TEST\"");
+    }
+
+    #[test]
+    fn test_function() {
+        assert_eq!(&parse_expr(" test('a', 'b') "), "test(\"a\", \"b\")"); 
     }
 }
