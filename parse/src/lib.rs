@@ -6,7 +6,7 @@ pub mod ast {
 
     #[derive(Debug)]
     pub enum Expr {
-        Num(i32),
+        Num(f32),
         Bool(bool), 
         Error(Error), 
         Cell(String), 
