@@ -147,6 +147,7 @@ mod tests {
     use crate::excel::*; 
     fn parse_expr(expr: &str) -> String {
         println!("{}", expr); 
+        println!("{:?}", ExprParser::new().parse(expr).unwrap()); 
         format!("{}", ExprParser::new().parse(expr).unwrap())
     }
 
@@ -210,5 +211,10 @@ mod tests {
     #[test]
     fn test_array() {
         assert_eq!(&parse_expr(" {1, 2, 3, 4} "), "{1, 2, 3, 4}"); 
+    }
+
+    #[test]
+    fn test_mix() {
+        assert_eq!(&parse_expr("test({1, 2, 3, 4}, 1, 'a')"), "test({1, 4, 3, 4}, 1, \"a\")")
     }
 }
