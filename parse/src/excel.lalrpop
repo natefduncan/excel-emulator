@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use crate::ast::{Expr, Opcode}; 
+use crate::ast::{Expr, Opcode, Error}; 
 
 grammar;
 
@@ -38,9 +38,21 @@ MultiComparisonOp: Opcode = {
 	">=" => Opcode::GreatThanOrEqual 
 }; 
 
+Err: Error = {
+	"#NULL!" => Error::Null, 
+	"#DIV/0!" => Error::Div, 
+	"#VALUE!" => Error::Value, 
+	"#REF!" => Error::Ref, 
+	"#NAME?" => Error::Name,
+	"#NUM!" => Error::Num, 
+	"#N/A" => Error::NA, 
+	"#GETTING_DATA" => Error::GettingData 
+}
+
 Term: Box<Expr> = {
     Num => Box::new(Expr::Num(<>)),
 	Str => Box::new(Expr::Str(<>)), 
+	Err => Box::new(Expr::Error(<>)), 
     "(" <Expr> ")"
 };
 

@@ -7,8 +7,9 @@ pub mod ast {
     #[derive(Debug)]
     pub enum Expr {
         Num(i32),
-        Op(Box<Expr>, Opcode, Box<Expr>),
         Str(String), 
+        Error(Error), 
+        Op(Box<Expr>, Opcode, Box<Expr>),
     }
 
     impl fmt::Display for Expr {
@@ -22,6 +23,9 @@ pub mod ast {
                 }, 
                 Expr::Str(s) => {
                     write!(f, "{}", s) 
+                }, 
+                Expr::Error(e) => {
+                    write!(f, "{}", e)
                 }
             }
         }
@@ -69,6 +73,34 @@ pub mod ast {
             })
         }
     }
+
+    #[derive(Debug)]
+    pub enum Error {
+        Null,
+        Div, 
+        Value,
+        Ref, 
+        Name, 
+        Num, 
+        NA, 
+        GettingData
+    }
+
+    impl fmt::Display for Error {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "{}", match self {
+                Error::Null => "#NULL!",
+                Error::Div => "#DIV/0!", 
+                Error::Value => "#VALUE!", 
+                Error::Ref => "#REF!", 
+                Error::Name => "#NAME?", 
+                Error::Num => "#NUM!", 
+                Error::NA => "#N/A", 
+                Error::GettingData => "#GETTING_DATA"
+            })
+        }
+    }
+
 }
 
 #[cfg(test)]
@@ -100,5 +132,18 @@ mod tests {
         assert_eq!(&parse_expr("1 <> 1"), "(1<>1)");
         assert_eq!(&parse_expr("1 % 1"), "(1%1)");
         assert_eq!(&parse_expr("22 * 44 + 66"), "((22*44)+66)");
+        assert_eq!(&parse_expr("test * 44 + 66"), "((test*44)+66)");
+    }
+
+    #[test] 
+    fn test_errors() {
+        assert_eq!(&parse_expr("#NULL!"), "#NULL!");
+        assert_eq!(&parse_expr("#DIV/0!"), "#DIV/0!");
+        assert_eq!(&parse_expr("#VALUE!"), "#VALUE!");
+        assert_eq!(&parse_expr("#REF!"), "#REF!");
+        assert_eq!(&parse_expr("#NAME?"), "#NAME?");
+        assert_eq!(&parse_expr("#NUM!"), "#NUM!");
+        assert_eq!(&parse_expr("#N/A"), "#N/A");
+        assert_eq!(&parse_expr("#GETTING_DATA"), "#GETTING_DATA");
     }
 }
