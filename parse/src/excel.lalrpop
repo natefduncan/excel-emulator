@@ -51,15 +51,15 @@ Err: Error = {
 
 Term: Box<Expr> = {
     Num => Box::new(Expr::Num(<>)),
-	Str => Box::new(Expr::Str(<>)), 
 	Err => Box::new(Expr::Error(<>)), 
+	Cell => Box::new(Expr::Cell(<>)), 
     "(" <Expr> ")"
 };
+
+Cell: String = {
+	r"(('[^/\\?*\[\]]{1,31}'|[A-Za-z0-9_]{1,31})!)?((\$?[A-Za-z]{1,3})(\$?[0-9]{1,6}))" => (<>).to_string()
+}
 
 Num: i32 = {
     r"[0-9]+" => i32::from_str(<>).unwrap()
 };
-
-Str: String = {
-	r"[a-zA-Z]+" => (<>).to_string()
-}

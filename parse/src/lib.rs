@@ -7,8 +7,8 @@ pub mod ast {
     #[derive(Debug)]
     pub enum Expr {
         Num(i32),
-        Str(String), 
         Error(Error), 
+        Cell(String), 
         Op(Box<Expr>, Opcode, Box<Expr>),
     }
 
@@ -21,7 +21,7 @@ pub mod ast {
                 Expr::Num(n) => {
                     write!(f, "{}", n)
                 }, 
-                Expr::Str(s) => {
+                Expr::Cell(s) => {
                     write!(f, "{}", s) 
                 }, 
                 Expr::Error(e) => {
@@ -132,7 +132,6 @@ mod tests {
         assert_eq!(&parse_expr("1 <> 1"), "(1<>1)");
         assert_eq!(&parse_expr("1 % 1"), "(1%1)");
         assert_eq!(&parse_expr("22 * 44 + 66"), "((22*44)+66)");
-        assert_eq!(&parse_expr("test * 44 + 66"), "((test*44)+66)");
     }
 
     #[test] 
@@ -145,5 +144,11 @@ mod tests {
         assert_eq!(&parse_expr("#NUM!"), "#NUM!");
         assert_eq!(&parse_expr("#N/A"), "#N/A");
         assert_eq!(&parse_expr("#GETTING_DATA"), "#GETTING_DATA");
+    }
+
+    #[test]
+    fn test_cell() {
+        assert_eq!(&parse_expr(" Sheet!A1 "), "Sheet!A1");
+        assert_eq!(&parse_expr(" A1 "), "A1");
     }
 }
