@@ -7,6 +7,7 @@ pub mod ast {
     #[derive(Debug)]
     pub enum Expr {
         Num(i32),
+        Bool(bool), 
         Error(Error), 
         Cell(String), 
         Op(Box<Expr>, Opcode, Box<Expr>),
@@ -17,6 +18,13 @@ pub mod ast {
             match self {
                 Expr::Op(a, op, b) => {
                     write!(f, "({}{}{})", a, op, b)
+                }, 
+                Expr::Bool(b) => {
+                    if *b {
+                        write!(f, "{}", "TRUE")
+                    } else {
+                        write!(f, "{}", "FALSE") 
+                    }
                 }, 
                 Expr::Num(n) => {
                     write!(f, "{}", n)
@@ -150,5 +158,11 @@ mod tests {
     fn test_cell() {
         assert_eq!(&parse_expr(" Sheet!A1 "), "Sheet!A1");
         assert_eq!(&parse_expr(" A1 "), "A1");
+    }
+
+    #[test]
+    fn test_bool() {
+        assert_eq!(&parse_expr(" TRUE "), "TRUE"); 
+        assert_eq!(&parse_expr(" FALSE "), "FALSE"); 
     }
 }
