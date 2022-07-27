@@ -65,6 +65,12 @@ Function: Box<Expr> = {
 	<name:r"[a-zA-Z]+"> "(" <args:FunctionArgs> ")" => Box::new(Expr::Func { name: name.to_string(), args })
 }
 
+ArrayArgs = Comma<Expr>;
+
+Array: Box<Expr> = {
+	"{" <arr:ArrayArgs> "}" => Box::new(Expr::Array(arr))
+}
+
 Cell: String = {
 	r"(('[^/\\?*\[\]]{1,31}'|[A-Za-z0-9_]{1,31})!)?((\$?[A-Za-z]{1,3})(\$?[0-9]{1,6}))" => (<>).to_string()
 }
@@ -90,5 +96,6 @@ Term: Box<Expr> = {
 	Text => Box::new(Expr::Text(<>)), 
 	Cell => Box::new(Expr::Cell(<>)), 
 	Function => <>, 
+	Array => <>, 
     "(" <Expr> ")"
 };
