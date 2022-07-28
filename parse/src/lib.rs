@@ -9,7 +9,7 @@ pub mod ast {
         Num(f32),
         Bool(bool), 
         Error(Error), 
-        Cell(String), 
+        Cell { sheet: Option<String>, reference: String }, 
         Op(Box<Expr>, Opcode, Box<Expr>),
         Text(String), 
         Func { name: String, args: Vec<Box<Expr>> }, 
@@ -32,8 +32,13 @@ pub mod ast {
                 Expr::Num(n) => {
                     write!(f, "{}", n)
                 }, 
-                Expr::Cell(s) => {
-                    write!(f, "{}", s) 
+                Expr::Cell {sheet, reference } => {
+                    let mut output = String::new();
+                    if let Some(n) = sheet {
+                        output = format!("{}{}!", output, n); // TODO
+                    }
+                    output = format!("{}{}", output, reference); 
+                    write!(f, "{}", output) 
                 }, 
                 Expr::Error(e) => {
                     write!(f, "{}", e)
@@ -189,6 +194,11 @@ mod tests {
     #[test]
     fn test_cell() {
         assert_eq!(&parse_expr(" Sheet!A1 "), "Sheet!A1");
+        assert_eq!(&parse_expr(" 'Sheet 1'!A1 "), "'Sheet 1'!A1");
+        assert_eq!(&parse_expr(" 'Sheet 1':'Sheet 2'!A1 "), "'Sheet 1':'Sheet 2'!A1");
+        assert_eq!(&parse_expr(" Sheet1:Sheet2!A1 "), "Sheet1:Sheet2!A1");
+        assert_eq!(&parse_expr(" Sheet1!A1:A2 "), "Sheet1!A1:A2");
+        assert_eq!(&parse_expr(" Sheet1!$A$1:A2 "), "Sheet1!$A$1:A2");
         assert_eq!(&parse_expr(" A1 "), "A1");
     }
 
@@ -215,6 +225,6 @@ mod tests {
 
     #[test]
     fn test_mix() {
-        assert_eq!(&parse_expr("test({1, 2, 3, 4}, 1, 'a')"), "test({1, 4, 3, 4}, 1, \"a\")")
+        assert_eq!(&parse_expr("test({1, 2, 3, 4}, 1, 'a')"), "test({1, 2, 3, 4}, 1, \"a\")")
     }
 }

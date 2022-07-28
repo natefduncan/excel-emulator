@@ -71,8 +71,20 @@ Array: Box<Expr> = {
 	"{" <arr:ArrayArgs> "}" => Box::new(Expr::Array(arr))
 }
 
-Cell: String = {
-	r"(('[^/\\?*\[\]]{1,31}'|[A-Za-z0-9_]{1,31})!)?((\$?[A-Za-z]{1,3})(\$?[0-9]{1,6}))" => (<>).to_string()
+Sheet : String = {
+	<name:r"[^ ][^/\\?*\[\]]{1,31}!"> => name.replace("!", "")
+}
+
+A1: String = {
+	<reference:r"(\$?[A-Z]{1,3}\$?[0-9]{1,6})(:\$?[A-Z]{1,3}\$?[0-9]{1,6})?|(\$?[A-Z]{1,3}:\$?[A-Z]{1,3})|(\$?[0-9]{1,6}:\$?[0-9]{1,3})"> => reference.to_string()
+}
+
+// Sheet name is optional
+Cell: Box<Expr> = {
+	<name:Sheet?> <reference: A1> => match name {
+		None => Box::new(Expr::Cell { sheet: None, reference: reference.to_string() }), 
+		Some(s) => Box::new(Expr::Cell { sheet: Some(s.to_string()), reference: reference.to_string() })
+	} 
 }
 
 Text: String = {
@@ -94,7 +106,7 @@ Term: Box<Expr> = {
 	Err => Box::new(Expr::Error(<>)), 
 	Bool => Box::new(Expr::Bool(<>)), 
 	Text => Box::new(Expr::Text(<>)), 
-	Cell => Box::new(Expr::Cell(<>)), 
+	Cell => <>, 
 	Function => <>, 
 	Array => <>, 
     "(" <Expr> ")"
