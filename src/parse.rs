@@ -12,6 +12,17 @@ pub enum Expr {
     Array(Vec<Box<Expr>>), 
 }
 
+impl Expr {
+    pub fn is_num(&self) -> bool { matches!(self, Expr::Num(_)) } 
+    pub fn is_bool(&self) -> bool { matches!(self, Expr::Bool(_)) }
+    pub fn is_error(&self) -> bool { matches!(self, Expr::Error(_)) }
+    pub fn is_cell(&self) -> bool { matches!(self, Expr::Cell{ sheet: _, reference: _ }) }
+    pub fn is_op(&self) -> bool { matches!(self, Expr::Op(_,_,_)) }
+    pub fn is_text(&self) -> bool { matches!(self, Expr::Text(_)) }
+    pub fn is_func(&self) -> bool { matches!(self, Expr::Func{ name: _, args: _}) }
+    pub fn is_array(&self) -> bool { matches!(self, Expr::Array(_)) }
+}
+
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
