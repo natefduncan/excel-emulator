@@ -1,6 +1,6 @@
 use std::fmt; 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Num(f32),
     Bool(bool), 
@@ -10,6 +10,7 @@ pub enum Expr {
     Text(String), 
     Func { name: String, args: Vec<Box<Expr>> }, 
     Array(Vec<Box<Expr>>), 
+    // TODO: Date
 }
 
 impl Expr {
@@ -82,7 +83,7 @@ impl fmt::Display for Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Opcode {
     Colon,
     Comma, 
@@ -125,7 +126,7 @@ impl fmt::Display for Opcode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     Null,
     Div, 

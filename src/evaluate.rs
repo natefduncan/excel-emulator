@@ -19,6 +19,23 @@ impl From<String> for Value { fn from(s: String) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
 impl From<Vec<Value>> for Value { fn from(v: Vec<Value>) -> Value { Value::Array(v) }}
 impl From<Date> for Value { fn from(d: Date) -> Value { Value::Date(d) }}
+impl From<Expr> for Value {
+    fn from(expr: Expr) -> Value {
+        match expr {
+            Expr::Num(x) => Value::from(x),
+            Expr::Bool(x) => Value::from(x), 
+            Expr::Text(x) => Value::from(x.clone()),
+            Expr::Array(x) => Value::from(x.to_vec()), 
+            _ => Value::from(-1.0) // TODO
+        }
+    }
+}
+impl From<Vec<Box<Expr>>> for Value {
+    fn from(v: Vec<Box<Expr>>) -> Value {
+       Value::from(v.to_vec().into_iter().map(|x| Value::from(*x)).collect::<Vec<Value>>())
+    }
+}
+
 
 impl Value {
     pub fn is_num(&self) -> bool { matches!(self, Value::Num(_)) }
@@ -116,6 +133,6 @@ mod tests {
 
     #[test]
     fn test_num() {
-        assert_eq(&evaluate_expr(" 1 + 1"), "2");
+        assert_eq!(&evaluate_expr(" 1 + 1"), "2");
     }
 }
