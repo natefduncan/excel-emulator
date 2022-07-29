@@ -7,8 +7,10 @@ build = "build.rs"
 [dependencies]
 lalrpop-util = { version = "0.19.8", features = ["lexer"] }
 petgraph = "0.6.2"
+quick-xml = { version = "0.23.0", features = ["serde", "serialize", "encoding"] }
 regex = "1.6.0"
 thiserror = "1.0.31"
+time = "0.3.11"
 
 [build-dependencies]
 lalrpop = "0.19.8"
