@@ -1,4 +1,5 @@
 use time::Date; 
+use std::collections::HashMap;
 use std::fmt; 
 
 use crate::excel::ExprParser; 
@@ -26,6 +27,12 @@ impl From<Expr> for Value {
             Expr::Bool(x) => Value::from(x), 
             Expr::Text(x) => Value::from(x.clone()),
             Expr::Array(x) => Value::from(x.to_vec()), 
+            Expr::Op(a, opcode, b) => {
+                match opcode {
+                    Opcode::Add => Sum {a: Value::from(*a), b: Value::from(*b)}.evaluate().unwrap(), 
+                    _ => Value::from(-1.0) // TODO
+                }
+            }, 
             _ => Value::from(-1.0) // TODO
         }
     }
@@ -33,6 +40,11 @@ impl From<Expr> for Value {
 impl From<Vec<Box<Expr>>> for Value {
     fn from(v: Vec<Box<Expr>>) -> Value {
        Value::from(v.to_vec().into_iter().map(|x| Value::from(*x)).collect::<Vec<Value>>())
+    }
+}
+impl From<Box<Expr>> for Value {
+    fn from(bexpr: Box<Expr>) -> Value {
+        Value::from(*bexpr)
     }
 }
 
@@ -112,7 +124,7 @@ struct Sum {
 
 impl Function for Sum {
     fn evaluate(self) -> Result<Value, Error> {
-        if !self.a.is_num() || !self.b.is_num() {
+        if self.a.is_num() && self.b.is_num() {
             Ok(Value::from(self.a.as_num() + self.b.as_num()))
         } else {
             Err(Error::Value)
@@ -120,19 +132,21 @@ impl Function for Sum {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use crate::evaluate::*;
     use crate::excel::ExprParser; 
 
-    fn evaluate_expr(expr: &str) -> String {
-        println!("{}", expr); 
-        println!("{:?}", ExprParser::new().parse(expr).unwrap()); 
-        format!("{}", evaluate(expr)) 
+    fn evaluate_expr(expr_str: &str) -> String {
+        println!("{}", expr_str); 
+        let expr : Box<Expr> = ExprParser::new().parse(expr_str).unwrap(); 
+        println!("{:?}", expr); 
+        format!("{}", Value::from(expr)) 
     }
 
     #[test]
     fn test_num() {
-        assert_eq!(&evaluate_expr(" 1 + 1"), "2");
+        assert_eq!(&evaluate_expr(" 1 + 1 "), "2");
     }
 }
