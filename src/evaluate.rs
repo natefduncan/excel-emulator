@@ -1,9 +1,8 @@
 use time::Date; 
-use std::collections::HashMap;
 use std::fmt; 
 
-use crate::excel::ExprParser; 
 use crate::parse::{Expr, Opcode, Error}; 
+use crate::function::*; 
 
 #[derive(Clone)]
 pub enum Value { 
@@ -31,6 +30,12 @@ impl From<Expr> for Value {
                 match opcode {
                     Opcode::Add => Sum {a: Value::from(*a), b: Value::from(*b)}.evaluate().unwrap(), 
                     _ => Value::from(-1.0) // TODO
+                }
+            }, 
+            Expr::Func {name, args } => {
+                match name.as_str() {
+                    "SUM" => Sum::from(args).evaluate().unwrap(), 
+                    _ => Value::from(-1.0)
                 }
             }, 
             _ => Value::from(-1.0) // TODO
@@ -113,25 +118,6 @@ impl fmt::Display for Value {
     }
 }
 
-pub trait Function {
-   fn evaluate(self) -> Result<Value, Error>; 
-}
-
-struct Sum {
-    a: Value,  
-    b: Value 
-}
-
-impl Function for Sum {
-    fn evaluate(self) -> Result<Value, Error> {
-        if self.a.is_num() && self.b.is_num() {
-            Ok(Value::from(self.a.as_num() + self.b.as_num()))
-        } else {
-            Err(Error::Value)
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -148,5 +134,10 @@ mod tests {
     #[test]
     fn test_num() {
         assert_eq!(&evaluate_expr(" 1 + 1 "), "2");
+    }
+
+    #[test]
+    fn test_formula() {
+        assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
     }
 }
