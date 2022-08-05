@@ -1,7 +1,7 @@
 use time::Date; 
 use std::fmt; 
 
-use crate::parse::{Expr, Opcode, Error}; 
+use crate::parse::{Expr, Opcode}; 
 use crate::function::*; 
 
 #[derive(Clone)]
