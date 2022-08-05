@@ -99,7 +99,7 @@ pub enum Opcode {
     LessThan, 
     LessThanOrEqual, 
     GreaterThan, 
-    GreatThanOrEqual, 
+    GreaterThanOrEqual, 
     Percent
 }
 
@@ -120,7 +120,7 @@ impl fmt::Display for Opcode {
             Opcode::LessThan => "<", 
             Opcode::LessThanOrEqual => "<=", 
             Opcode::GreaterThan => ">", 
-            Opcode::GreatThanOrEqual => ">=", 
+            Opcode::GreaterThanOrEqual => ">=", 
             Opcode::Percent => "%"
         })
     }

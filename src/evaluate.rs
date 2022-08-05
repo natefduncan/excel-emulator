@@ -40,6 +40,12 @@ impl From<Expr> for Value {
                     Opcode::Multiply => Multiply {a: Value::from(*a), b: Value::from(*b)}.evaluate().unwrap(), 
                     Opcode::Divide => Divide {a: Value::from(*a), b: Value::from(*b)}.evaluate().unwrap(), 
                     Opcode::Exponent => Exponent {a: Value::from(*a), b: Value::from(*b)}.evaluate().unwrap(), 
+                    Opcode::Equal => Value::from(Value::from(a) == Value::from(b)), 
+                    Opcode::NotEqual => Value::from(Value::from(a) != Value::from(b)), 
+                    Opcode::LessThan => Value::from(Value::from(a) < Value::from(b)), 
+                    Opcode::LessThanOrEqual => Value::from(Value::from(a) <= Value::from(b)), 
+                    Opcode::GreaterThan => Value::from(Value::from(a) > Value::from(b)), 
+                    Opcode::GreaterThanOrEqual => Value::from(Value::from(a) >= Value::from(b)), 
                     _ => Value::from(-1.0) // TODO
                 }
             }, 
@@ -117,7 +123,7 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Value::Num(x) => { write!(f, "{}", x) }, 
-            Value::Bool(x) => { write!(f, "{}", x) }, 
+            Value::Bool(x) => { write!(f, "{}", if *x { "TRUE" } else { "FALSE" }) }, 
             Value::Text(x) => { write!(f, "{}", x) }, 
             Value::Date(x) => { write!(f, "{}", x) }, 
             Value::Array(x) => {

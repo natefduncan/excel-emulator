@@ -35,7 +35,7 @@ SingleComparisonOp: Opcode = {
 MultiComparisonOp: Opcode = {
 	"<>" => Opcode::NotEqual,
 	"<=" => Opcode::LessThanOrEqual,
-	">=" => Opcode::GreatThanOrEqual 
+	">=" => Opcode::GreaterThanOrEqual 
 }; 
 
 Err: Error = {
