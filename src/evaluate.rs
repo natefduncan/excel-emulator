@@ -1,7 +1,7 @@
 use time::Date; 
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
-use std::ops::{Add, Sub, Mul, Div, Neg};  
+use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
 
 use crate::parse::{Expr, Opcode}; 
 use crate::function::*; 
@@ -205,6 +205,16 @@ impl Add for Value {
                //TODO
                _ => panic!("{} cannot be added to {}.", other, self)
            }
+    }
+}
+
+impl AddAssign for Value {
+    fn add_assign(&mut self, other: Self) {
+        if self.is_num() {
+            *self = *self + other
+        } else {
+            panic!("{} cannot be add assigned to {}.", other, self)
+        }
     }
 }
 
