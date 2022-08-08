@@ -47,16 +47,16 @@ impl From<Expr> for Value {
                     Opcode::LessThanOrEqual => Value::from(Value::from(a) <= Value::from(b)), 
                     Opcode::GreaterThan => Value::from(Value::from(a) > Value::from(b)), 
                     Opcode::GreaterThanOrEqual => Value::from(Value::from(a) >= Value::from(b)), 
-                    _ => Value::from(-1.0) // TODO
+                    _ => panic!("Opcode {} does not convert to a value.", opcode) 
                 }
             }, 
             Expr::Func {name, args} => {
                 match name.as_str() {
                     // "SUM" => Add::from(args).evaluate().unwrap(), 
-                    _ => Value::from(-1.0) //TODO
+                    _ => panic!("Function {} does not convert to a value.", name)  
                 }
             }, 
-            _ => Value::from(-1.0) // TODO
+            _ => panic!("Expression {} does not convert to a value.", expr)  
         }
     }
 }
