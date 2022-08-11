@@ -281,6 +281,7 @@ mod tests {
         assert_eq!(&evaluate_expr(" 1 + 1 "), "2");
         assert_eq!(&evaluate_expr(" 1 - 1 "), "0"); 
         assert_eq!(&evaluate_expr(" 2 * 2 "), "4"); 
+        assert_eq!(&evaluate_expr(" (2 + 1) * 2 "), "6"); 
         assert_eq!(&evaluate_expr(" 8 / 4 "), "2"); 
         assert_eq!(&evaluate_expr(" 8^2 "), "64"); 
     }
@@ -293,5 +294,6 @@ mod tests {
     #[test]
     fn test_formula() {
         assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
+        assert_eq!(&evaluate_expr(" SUM(SUM(1, 2), 1) "), "4"); 
     }
 }
