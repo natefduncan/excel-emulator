@@ -6,6 +6,7 @@ pub fn evaluate_function(name: &str, args: Vec<Box<Expr>>) -> Value {
 	match name {
 		"SUM" => Sum::from(args).evaluate(), 
 		"AVERAGE" => Average::from(args).evaluate(), 
+		"COUNT" => Count::from(args).evaluate(), 
 		_ => panic!("Function {} does not convert to a value.", name)  
 	}
 }
@@ -59,6 +60,23 @@ fn average(args: Vec<Value>) -> Value {
     Value::from(average)
 }
 
+#[excel_function]
+fn count(args: Vec<Value>) -> Value {
+	let mut count = 0.0;
+	for arg in args.iter() {
+		if let Value::Array(arr) = arg {
+            for x in arr.iter() {
+                if x.is_num() {
+                    count += 1.0; 
+                }
+            }
+        } else {
+            count += 1.0; 
+        }
+	}
+    Value::from(count)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utils::evaluate_expr;
@@ -77,6 +95,13 @@ mod tests {
 		assert_eq!(&evaluate_expr("AVERAGE({1,2;3,4})"), "2.5");
 		assert_eq!(&evaluate_expr("AVERAGE({1,2,3,4,5},6,\"7\")"), "4");
 		assert_eq!(&evaluate_expr("AVERAGE({1,\"2\",TRUE,4})"), "2.5");
+    }
+
+    #[test]
+    fn test_count() {
+		assert_eq!(&evaluate_expr("COUNT(1,2,3,4,5)"), "5");
+		assert_eq!(&evaluate_expr("COUNT({1,2,3,4,5})"), "5");
+		assert_eq!(&evaluate_expr("COUNT({1,2,3,4,5},6,\"7\")"), "7");
     }
  
 }
