@@ -32,7 +32,7 @@ impl From<Expr> for Value {
         match expr {
             Expr::Num(x) => Value::from(x),
             Expr::Bool(x) => Value::from(x), 
-            Expr::Text(x) => Value::from(x.clone()),
+            Expr::Text(x) => Value::from(x),
             Expr::Array(x) => Value::from(x.to_vec()), 
             Expr::Op(a, opcode, b) => {
                 match opcode {
@@ -52,7 +52,7 @@ impl From<Expr> for Value {
             }, 
             Expr::Func {name, args} => {
                 match name.as_str() {
-                    // "SUM" => Add::from(args).evaluate().unwrap(), 
+                    "SUM" => Sum::from(args).evaluate(), 
                     _ => panic!("Function {} does not convert to a value.", name)  
                 }
             }, 
@@ -62,7 +62,7 @@ impl From<Expr> for Value {
 }
 impl From<Vec<Box<Expr>>> for Value {
     fn from(v: Vec<Box<Expr>>) -> Value {
-       Value::from(v.to_vec().into_iter().map(|x| Value::from(*x)).collect::<Vec<Value>>())
+       Value::from(v.iter().cloned().map(|x| Value::from(*x)).collect::<Vec<Value>>())
     }
 }
 impl From<Box<Expr>> for Value {
@@ -96,10 +96,12 @@ impl Value {
         match self {
             Value::Bool(x) => *x, 
             Value::Num(n) => {
-                match n {
-                    1.0 => true, 
-                    0.0 => false, 
-                    _ => panic!("{} cannot be converted to a boolean.", self)
+                if *n == 1.0 {
+                    true
+                } else if *n == 0.0 {
+                    false
+                } else {
+                    panic!("{} cannot be converted to a boolean.", self)
                 }
             }, 
             _ => panic!("{} cannot be converted to a boolean.", self)
@@ -290,6 +292,6 @@ mod tests {
 
     #[test]
     fn test_formula() {
-        // assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
+        assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
     }
 }

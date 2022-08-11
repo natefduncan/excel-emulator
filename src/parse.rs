@@ -32,9 +32,9 @@ impl fmt::Display for Expr {
             }, 
             Expr::Bool(b) => {
                 if *b {
-                    write!(f, "{}", "TRUE")
+                    write!(f, "TRUE")
                 } else {
-                    write!(f, "{}", "FALSE") 
+                    write!(f, "FALSE") 
                 }
             }, 
             Expr::Num(n) => {

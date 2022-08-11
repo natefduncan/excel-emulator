@@ -1,5 +1,5 @@
 use proc_macro::{TokenStream, Span};
-use syn::{self, ItemFn, Ident, FnArg, PatIdent}; 
+use syn::{self, ItemFn, Ident, FnArg}; 
 use quote::quote; 
 
 fn make_ascii_titlecase(s: &mut str) {
