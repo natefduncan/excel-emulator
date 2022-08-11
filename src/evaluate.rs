@@ -53,6 +53,7 @@ impl From<Expr> for Value {
             Expr::Func {name, args} => {
                 match name.as_str() {
                     "SUM" => Sum::from(args).evaluate(), 
+					"AVERAGE" => Average::from(args).evaluate(), 
                     _ => panic!("Function {} does not convert to a value.", name)  
                 }
             }, 
@@ -304,5 +305,13 @@ mod tests {
 		assert_eq!(&evaluate_expr("SUM({1,2;3,4})"), "10");
 		assert_eq!(&evaluate_expr("SUM({1,2,3,4,5},6,\"7\")"), "28");
 		assert_eq!(&evaluate_expr("SUM({1,\"2\",TRUE,4})"), "5");
+    }
+
+    #[test]
+    fn test_average() {
+		assert_eq!(&evaluate_expr("AVERAGE(1,2,3,4,5)"), "3");
+		assert_eq!(&evaluate_expr("AVERAGE({1,2;3,4})"), "2.5");
+		assert_eq!(&evaluate_expr("AVERAGE({1,2,3,4,5},6,\"7\")"), "4");
+		assert_eq!(&evaluate_expr("AVERAGE({1,\"2\",TRUE,4})"), "2.5");
     }
 }
