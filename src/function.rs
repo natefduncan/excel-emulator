@@ -13,6 +13,17 @@ fn exponent(a: Value, b: Value) -> Value {
 
 #[excel_function]
 fn sum(args: Vec<Value>) -> Value {
-    args.into_iter().fold(Value::from(0.0), |mut s, v| {s += v; s})
+    args.into_iter().fold(Value::from(0.0), |mut s, v| {
+        if let Value::Array(arr) = v {
+            for x in arr {
+                if x.is_num() {
+                    s += x
+                }
+            }
+        } else {
+            s += Value::from(v.as_num())
+        }
+        s
+    })
 }
 

@@ -86,6 +86,7 @@ impl fmt::Display for Expr {
 #[derive(Debug, Clone)]
 pub enum Opcode {
     Colon,
+    SemiColon,
     Comma, 
     Space, 
     Exponent, 
@@ -107,6 +108,7 @@ impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", match self {
             Opcode::Colon => ":",
+            Opcode::SemiColon => ";", 
             Opcode::Comma => ",", 
             Opcode::Space => " ", 
             Opcode::Exponent => "^", 
@@ -217,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_text() {
-        assert_eq!(&parse_expr(" \" TEST \" "), "\"TEST\"");
+        assert_eq!(&parse_expr(" \" TEST \" "), "\" TEST \"");
     }
 
     #[test]
@@ -228,6 +230,7 @@ mod tests {
     #[test]
     fn test_array() {
         assert_eq!(&parse_expr(" {1, 2, 3, 4} "), "{1, 2, 3, 4}"); 
+        assert_eq!(&parse_expr(" {1, 2; 3, 4} "), "{1, 2, 3, 4}"); 
     }
 
     #[test]

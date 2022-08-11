@@ -50,13 +50,13 @@ Err: Error = {
 }
 
 Comma<T>: Vec<T> = { 
-    <mut v:(<T> ",")*> <e:T?> => match e { 
+    <mut v:(<T> r",|;")*> <e:T?> => match e { 
         None => v,
         Some(e) => {
             v.push(e);
             v
         }
-    }
+    },
 };
 
 FunctionArgs = Comma<Expr>; 
@@ -88,9 +88,13 @@ Cell: Box<Expr> = {
 }
 
 Text: String = {
-	"\"" <r"[a-zA-Z]+"> "\"" => (<>).to_string(), 
-	"'" <r"[a-zA-Z]+"> "'" => (<>).to_string()
-}
+	<text:r#""(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'"#> => {
+		let mut chars = text.chars();
+		chars.next();
+		chars.next_back();
+		chars.as_str().to_string()
+	}
+}; 
 
 Bool: bool = {
 	"TRUE" => true, 

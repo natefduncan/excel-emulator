@@ -82,6 +82,7 @@ impl Value {
     pub fn as_num(&self) -> NumType {
         match self {
             Value::Num(x) => *x, 
+            Value::Text(t) => t.parse::<NumType>().unwrap(), 
             Value::Bool(x) => {
                 match x {
                     true => 1.0, 
@@ -295,5 +296,13 @@ mod tests {
     fn test_formula() {
         assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
         assert_eq!(&evaluate_expr(" SUM(SUM(1, 2), 1) "), "4"); 
+    }
+
+    #[test]
+    fn test_sum() {
+		assert_eq!(&evaluate_expr("SUM(1,2,3,4,5)"), "15");
+		assert_eq!(&evaluate_expr("SUM({1,2;3,4})"), "10");
+		assert_eq!(&evaluate_expr("SUM({1,2,3,4,5},6,\"7\")"), "28");
+		assert_eq!(&evaluate_expr("SUM({1,\"2\",TRUE,4})"), "5");
     }
 }
