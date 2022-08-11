@@ -2,6 +2,14 @@ use crate::parse::Expr;
 use crate::evaluate::Value; 
 use function_macro::excel_function; 
 
+pub fn evaluate_function(name: &str, args: Vec<Box<Expr>>) -> Value {
+	match name {
+		"SUM" => Sum::from(args).evaluate(), 
+		"AVERAGE" => Average::from(args).evaluate(), 
+		_ => panic!("Function {} does not convert to a value.", name)  
+	}
+}
+
 pub trait Function {
    fn evaluate(self) -> Value; 
 }
@@ -51,3 +59,24 @@ fn average(args: Vec<Value>) -> Value {
     Value::from(average)
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::utils::evaluate_expr;
+
+	#[test]
+    fn test_sum() {
+		assert_eq!(&evaluate_expr("SUM(1,2,3,4,5)"), "15");
+		assert_eq!(&evaluate_expr("SUM({1,2;3,4})"), "10");
+		assert_eq!(&evaluate_expr("SUM({1,2,3,4,5},6,\"7\")"), "28");
+		assert_eq!(&evaluate_expr("SUM({1,\"2\",TRUE,4})"), "5");
+    }
+
+    #[test]
+    fn test_average() {
+		assert_eq!(&evaluate_expr("AVERAGE(1,2,3,4,5)"), "3");
+		assert_eq!(&evaluate_expr("AVERAGE({1,2;3,4})"), "2.5");
+		assert_eq!(&evaluate_expr("AVERAGE({1,2,3,4,5},6,\"7\")"), "4");
+		assert_eq!(&evaluate_expr("AVERAGE({1,\"2\",TRUE,4})"), "2.5");
+    }
+ 
+}

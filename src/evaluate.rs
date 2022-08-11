@@ -50,13 +50,7 @@ impl From<Expr> for Value {
                     _ => panic!("Opcode {} does not convert to a value.", opcode) 
                 }
             }, 
-            Expr::Func {name, args} => {
-                match name.as_str() {
-                    "SUM" => Sum::from(args).evaluate(), 
-					"AVERAGE" => Average::from(args).evaluate(), 
-                    _ => panic!("Function {} does not convert to a value.", name)  
-                }
-            }, 
+            Expr::Func {name, args} => evaluate_function(name.as_str(), args),
             _ => panic!("Expression {} does not convert to a value.", expr)  
         }
     }
@@ -265,18 +259,9 @@ impl Neg for Value {
 }
 
 
-
 #[cfg(test)]
 mod tests {
-    use crate::evaluate::*;
-    use crate::excel::ExprParser; 
-
-    fn evaluate_expr(expr_str: &str) -> String {
-        println!("{}", expr_str); 
-        let expr : Box<Expr> = ExprParser::new().parse(expr_str).unwrap(); 
-        println!("{:?}", expr); 
-        format!("{}", Value::from(expr)) 
-    }
+	use crate::utils::evaluate_expr;
 
     #[test]
     fn test_op_codes() {
@@ -297,21 +282,5 @@ mod tests {
     fn test_formula() {
         assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
         assert_eq!(&evaluate_expr(" SUM(SUM(1, 2), 1) "), "4"); 
-    }
-
-    #[test]
-    fn test_sum() {
-		assert_eq!(&evaluate_expr("SUM(1,2,3,4,5)"), "15");
-		assert_eq!(&evaluate_expr("SUM({1,2;3,4})"), "10");
-		assert_eq!(&evaluate_expr("SUM({1,2,3,4,5},6,\"7\")"), "28");
-		assert_eq!(&evaluate_expr("SUM({1,\"2\",TRUE,4})"), "5");
-    }
-
-    #[test]
-    fn test_average() {
-		assert_eq!(&evaluate_expr("AVERAGE(1,2,3,4,5)"), "3");
-		assert_eq!(&evaluate_expr("AVERAGE({1,2;3,4})"), "2.5");
-		assert_eq!(&evaluate_expr("AVERAGE({1,2,3,4,5},6,\"7\")"), "4");
-		assert_eq!(&evaluate_expr("AVERAGE({1,\"2\",TRUE,4})"), "2.5");
     }
 }

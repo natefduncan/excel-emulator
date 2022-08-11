@@ -3,4 +3,5 @@ pub mod parse;
 lalrpop_mod!(pub excel); 
 pub mod tree; 
 pub mod evaluate; 
+pub mod utils;
 pub mod function; 
