@@ -40,7 +40,7 @@ impl From<Expr> for Value {
                     Opcode::Subtract => Value::from(*a) - Value::from(*b), 
                     Opcode::Multiply => Value::from(*a) * Value::from(*b), 
                     Opcode::Divide => Value::from(*a) / Value::from(*b), 
-                    Opcode::Exponent => Exponent {a: Value::from(*a), b: Value::from(*b)}.evaluate().unwrap(), 
+                    Opcode::Exponent => Exponent {a: Value::from(*a), b: Value::from(*b)}.evaluate(), 
                     Opcode::Equal => Value::from(Value::from(a) == Value::from(b)), 
                     Opcode::NotEqual => Value::from(Value::from(a) != Value::from(b)), 
                     Opcode::LessThan => Value::from(Value::from(a) < Value::from(b)), 
@@ -211,7 +211,7 @@ impl Add for Value {
 impl AddAssign for Value {
     fn add_assign(&mut self, other: Self) {
         if self.is_num() {
-            *self = *self + other
+            *self = self.clone() + other
         } else {
             panic!("{} cannot be add assigned to {}.", other, self)
         }
