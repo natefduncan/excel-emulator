@@ -15,7 +15,7 @@ pub type ZipType = ZipArchive<File>;
 pub struct Book {
     path: String,
     zip: ZipType, 
-    sheet: Vec<Sheet>, 
+    sheets: Vec<Sheet>, 
     shared_strings: Vec<SharedString>, 
     styles: Vec<Style>
 }
@@ -26,7 +26,7 @@ impl Default for Book {
         Book {
             path: String::new(), 
             zip: Self::zip_from_path(""), //This will fail 
-            sheet: vec![], 
+            sheets: vec![], 
             shared_strings: vec![], 
             styles: vec![]
         }
@@ -48,9 +48,10 @@ impl From<&str> for Book {
 
 impl Book {
     fn load(&mut self) -> Result<()> {
-        self.load_sheets(); 
+        self.load_sheet_names()?; 
         self.load_shared_strings()?; 
-        self.load_styles(); 
+        self.load_styles()?; 
+        self.load_sheets()?; 
         Ok(())
     }
 
@@ -74,14 +75,15 @@ impl Book {
                     Ok(Event::Eof) => break, 
                     _ => {}
                 }
+                buf.clear(); 
             }
         }
        Ok(())
     }
 
-    fn load_styles(&mut self) {
+    fn load_styles(&mut self) -> Result<()> {
         let mut buf = Vec::new();
-        if let Ok(f) = self.zip.by_name("xl/sharedStrings.xml") {
+        if let Ok(f) = self.zip.by_name("xl/styles.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             let mut is_cell_xfs: bool = false;
             loop {
@@ -102,13 +104,42 @@ impl Book {
                             self.styles.push(Book::decode_style(&reader, e)); 
                         }
                     }, 
+                    Ok(Event::End(ref e)) if e.name() == b"cellXfs" => { is_cell_xfs = false; }, 
+                    Ok(Event::Eof) => break, 
                     _ => {}
                 }
+                buf.clear(); 
             }
         }
+        Ok(())
     }
 
-    fn load_sheets(&mut self) { }
+    fn load_sheet_names(&mut self) -> Result<()> {
+        let mut buf = Vec::new();
+        if let Ok(f) = self.zip.by_name("xl/workbook.xml") {
+            let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
+            loop {
+                match reader.read_event(&mut buf) {
+                    Ok(Event::Empty(ref e)) if e.local_name() == b"sheet" => {
+                        for a in e.attributes() {
+                            let a = a.unwrap();
+                            if let b"name" = a.key {
+                                let name = a.unescape_and_decode_value(&reader).unwrap();
+                                self.sheets.push(Sheet(name)); 
+                            }
+                        }
+                    }, 
+                    Ok(Event::Eof) => break, 
+                    _ => {}
+                }
+
+                buf.clear(); 
+            }
+        }
+        Ok(())
+    }
+
+    fn load_sheets(&mut self) -> Result<()> { Ok(()) }
     fn load_sheet(&mut self, sheet_name: &str) -> Result<()> {
         Ok(())
     }
