@@ -5,15 +5,18 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
+anyhow = "1.0.61"
 function-macro = { version = "0.1.0", path = "function-macro" }
-lalrpop-util = { version = "0.19.8", features = ["lexer"] }
+lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
+lalrpop-util = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
 petgraph = "0.6.2"
 quick-xml = { version = "0.23.0", features = ["serde", "serialize", "encoding"] }
 regex = "1.6.0"
+serde = "1.0.143"
 syn = { version = "1.0.99", features = ["full", "extra-traits"] }
 thiserror = "1.0.31"
 time = "0.3.11"
+zip = "0.6.2"
 
 [build-dependencies]
-lalrpop = "0.19.8"
-
+lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
