@@ -190,6 +190,13 @@ impl fmt::Display for Sheet {
     }
 }
 
+impl Sheet {
+    pub fn name(&self) -> String {
+        let Sheet(s) = self;
+        s.clone()
+    }
+}
+
 pub struct SharedString(Box<String>); 
 pub struct Style {
     pub number_format_id: usize, 
