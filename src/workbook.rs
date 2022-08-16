@@ -1,6 +1,7 @@
 use quick_xml::events::BytesStart;
 use zip::read::{ZipArchive, ZipFile};
 use std::fs::File;
+use std::fmt; 
 use std::io::BufReader; 
 use quick_xml::{
     Reader, 
@@ -36,7 +37,7 @@ impl Default for Book {
 impl From<String> for Book {
     fn from(s: String) -> Self {
         let zip = Self::zip_from_path(&s); 
-        Book { path: s, zip, ..Default::default() }
+        Book { path: s, zip, sheets: vec![], shared_strings: vec![], styles: vec![] }
     }
 }
 
@@ -47,7 +48,7 @@ impl From<&str> for Book {
 }
 
 impl Book {
-    fn load(&mut self) -> Result<()> {
+    pub fn load(&mut self) -> Result<()> {
         self.load_sheet_names()?; 
         self.load_shared_strings()?; 
         self.load_styles()?; 
@@ -55,7 +56,7 @@ impl Book {
         Ok(())
     }
 
-    fn load_shared_strings(&mut self) -> Result<()> {
+    pub fn load_shared_strings(&mut self) -> Result<()> {
         let mut buf = Vec::new(); 
         if let Ok(f) = self.zip.by_name("xl/sharedStrings.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -81,7 +82,7 @@ impl Book {
        Ok(())
     }
 
-    fn load_styles(&mut self) -> Result<()> {
+    pub fn load_styles(&mut self) -> Result<()> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.by_name("xl/styles.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -114,7 +115,7 @@ impl Book {
         Ok(())
     }
 
-    fn load_sheet_names(&mut self) -> Result<()> {
+    pub fn load_sheet_names(&mut self) -> Result<()> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.by_name("xl/workbook.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -132,19 +133,19 @@ impl Book {
                     Ok(Event::Eof) => break, 
                     _ => {}
                 }
-
                 buf.clear(); 
             }
         }
         Ok(())
     }
 
-    fn load_sheets(&mut self) -> Result<()> { Ok(()) }
-    fn load_sheet(&mut self, sheet_name: &str) -> Result<()> {
+    pub fn load_sheets(&mut self) -> Result<()> { Ok(()) }
+    pub fn load_sheet(&mut self, sheet_name: &str) -> Result<()> {
         Ok(())
     }
 
-    fn zip_from_path(path: &str) -> ZipType {
+    pub fn zip_from_path(path: &str) -> ZipType {
+        println!("{:?}", path); 
         let file: File = File::open(path).expect("Unable to find file"); 
         zip::ZipArchive::new(file).expect("Unable to create zip") 
     }
@@ -157,18 +158,18 @@ impl Book {
         // }
     // }
 
-    fn decode_text_event(reader: &Reader<BufReader<ZipFile>>, e: &BytesText) -> String {
+    pub fn decode_text_event(reader: &Reader<BufReader<ZipFile>>, e: &BytesText) -> String {
         e.unescape_and_decode(reader).unwrap()
     }
 
-    fn decode_attribute_usize(reader: &Reader<BufReader<ZipFile>>, a: Attribute) -> usize {
+    pub fn decode_attribute_usize(reader: &Reader<BufReader<ZipFile>>, a: Attribute) -> usize {
         a.unescape_and_decode_value(reader)
         .unwrap()
         .parse::<usize>()
         .unwrap() 
     }
 
-    fn decode_style(reader: &Reader<BufReader<ZipFile>>, e: &BytesStart) -> Style {
+    pub fn decode_style(reader: &Reader<BufReader<ZipFile>>, e: &BytesStart) -> Style {
         let mut number_format_id : usize = 0; 
         let mut apply_number_format: bool = false; 
         for a in e.attributes() {
@@ -187,11 +188,25 @@ impl Book {
     }
 }
 
+#[derive(Debug)]
 pub struct Sheet(String); 
+impl From<&str> for Sheet {
+    fn from(s: &str) -> Sheet {
+        Sheet(s.to_string())
+    }
+}
+
+impl fmt::Display for Sheet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Sheet(s) = self;
+        write!(f, "'{}'!", s)
+    }
+}
+
 pub struct SharedString(Box<String>); 
 pub struct Style {
-    number_format_id: usize, 
-    apply_number_format: bool 
+    pub number_format_id: usize, 
+    pub apply_number_format: bool 
 }
 
 impl Default for Style {
@@ -201,8 +216,23 @@ impl Default for Style {
 }
 
 impl Style {
-    fn new() -> Style {
+    pub fn new() -> Style {
         Default::default()
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::workbook::Book;
+
+    #[test]
+    fn sheet_names() {
+        let mut book = Book::from("assets/data_types.xlsx"); 
+        book.load().expect("Could not load workbook"); 
+        assert_eq!(&book.sheets[0].to_string(), "'test 1'!");
+        assert_eq!(&book.sheets[1].to_string(), "'test 2'!");
+        assert_eq!(&book.sheets[2].to_string(), "'test 3'!");
+    }
+}
+
