@@ -21,19 +21,6 @@ pub struct Book {
     styles: Vec<Style>
 }
 
-impl Default for Book {
-    fn default() -> Self {
-        
-        Book {
-            path: String::new(), 
-            zip: Self::zip_from_path(""), //This will fail 
-            sheets: vec![], 
-            shared_strings: vec![], 
-            styles: vec![]
-        }
-    }
-}
-
 impl From<String> for Book {
     fn from(s: String) -> Self {
         let zip = Self::zip_from_path(&s); 
