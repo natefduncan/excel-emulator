@@ -224,9 +224,9 @@ mod tests {
     fn sheet_names() {
         let mut book = Book::from("assets/data_types.xlsx"); 
         book.load().expect("Could not load workbook"); 
-        assert_eq!(&book.sheets[0].to_string(), "'test 1'!");
-        assert_eq!(&book.sheets[1].to_string(), "'test 2'!");
-        assert_eq!(&book.sheets[2].to_string(), "'test 3'!");
+        assert_eq!(&book.sheets[0].name(), "test 1");
+        assert_eq!(&book.sheets[1].name(), "test 2");
+        assert_eq!(&book.sheets[2].name(), "test 3");
     }
 }
 
