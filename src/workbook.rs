@@ -191,7 +191,7 @@ impl Book {
                             let value: Value; 
                             if flags.is_formula {
                                 //TODO: Deal with formulas
-                                value = Value::from(cell_text); 
+                                value = Value::from(format!("={}", &cell_text.replace("_xlfn.", "").to_owned())); 
                             } else if flags.is_string {
                                 let shared_string_idx: usize = cell_text.parse::<usize>().unwrap();
                                 let SharedString(s) = self.shared_strings.get(shared_string_idx).unwrap();
@@ -209,6 +209,7 @@ impl Book {
                             } else {
                                 value = Value::Empty; 
                             }
+                            // println!("{}, {}", flags.current_cell_reference, value); 
                             flags.reset(); 
                         }
                     }, 
@@ -343,7 +344,7 @@ mod tests {
         book.load().expect("Could not load workbook"); 
         assert_eq!(&book.sheets[0].name(), "test 1");
         assert_eq!(&book.sheets[1].name(), "test 2");
-        assert_eq!(&book.sheets[2].name(), "test 4");
+        assert_eq!(&book.sheets[2].name(), "test 3");
     }
 }
 
