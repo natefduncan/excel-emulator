@@ -58,9 +58,12 @@ impl Book {
                     }, 
                     Ok(Event::Text(ref e)) => {
                         if is_shared_string {
-                            self.shared_strings.push(
-                                SharedString(Box::new(Self::decode_text_event(&reader, e)))
-                            )
+                            let decoded_text: String = Self::decode_text_event(&reader, e);
+                            if !decoded_text.is_empty() {
+                                self.shared_strings.push(
+                                    SharedString(Box::new(Self::decode_text_event(&reader, e)))
+                                )
+                            }
                         }
                     }, 
                     Ok(Event::Eof) => break, 
@@ -129,7 +132,12 @@ impl Book {
         Ok(())
     }
 
-    pub fn load_sheets(&mut self) -> Result<()> { Ok(()) }
+    pub fn load_sheets(&mut self) -> Result<()> { 
+        for sheet_id in 0..self.sheets.len() {
+            self.load_sheet(sheet_id)?
+        }
+        Ok(()) 
+    }
     pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<()> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
@@ -143,20 +151,30 @@ impl Book {
                             match a.key {
                                 b"r" => {
                                     // Cell reference
+                                    flags.current_cell_reference = a.unescape_and_decode_value(&reader).unwrap();
                                 }, 
                                 b"t" => {
                                     // Cell type
+                                    let a_value = a.unescape_and_decode_value(&reader).unwrap();
+                                    if a_value == *"s" {
+                                        flags.is_string = true; 
+                                    }
                                 },
                                 b"s" => {
                                     // Cell style / date
+                                    let cell_style_idx: usize = a.unescape_and_decode_value(&reader).unwrap().parse::<usize>().unwrap(); 
+                                    let style: &Style = self.styles.get(cell_style_idx).expect("Could not find style index");
+                                    if style.number_format_id >= 14 && style.number_format_id <= 22 && style.apply_number_format {
+                                        flags.is_date = true;
+                                    }
                                 }, 
                                 _ => {}
                             }
                         }
                     }, 
                     Ok(Event::Start(ref e)) if e.name() == b"f" => {
-                        // Shared formula flag
-
+                        // Formula flag
+                        flags.is_formula = true;
                     }, 
                     Ok(Event::Empty(ref e)) if e.name() == b"f" => {
                         // Shared formula
@@ -164,26 +182,35 @@ impl Book {
                     }, 
                     Ok(Event::Start(ref e)) if e.name() == b"v" => {
                         // Value
+                        flags.is_value = true; 
                     }, 
                     Ok(Event::Text(ref e)) => {
-                        if flags.has_content() {
+                        let cell_text = Book::decode_text_event(&reader, e); 
+                        if !cell_text.is_empty() && !flags.current_cell_reference.is_empty() {
                             let cell_text = Book::decode_text_event(&reader, e); 
+                            let value: Value; 
                             if flags.is_formula {
                                 //TODO: Deal with formulas
-                                let value = Value::from(cell_text); 
+                                value = Value::from(cell_text); 
                             } else if flags.is_string {
-                                let value = Value::from(cell_text); 
+                                let shared_string_idx: usize = cell_text.parse::<usize>().unwrap();
+                                let SharedString(s) = self.shared_strings.get(shared_string_idx).unwrap();
+                                value = Value::from(*s.clone()); 
                             } else if flags.is_date {
-                                let value = Value::from(excel_to_date(cell_text.parse::<f64>().unwrap())); 
+                                value = Value::from(excel_to_date(cell_text.parse::<f64>().unwrap())); 
                             } else if !cell_text.is_empty() {
-                                let value = match &*cell_text {
+                                value = match &*cell_text {
                                     "TRUE" => Value::Bool(true), 
                                     "FALSE" => Value::Bool(false), 
-                                    _ => Value::Num(cell_text.parse::<f32>().expect("Unable to parse to number"))
+                                    _ => {
+                                        Value::Num(cell_text.parse::<f32>().expect("Unable to parse to number"))
+                                    }
                                 }; 
+                            } else {
+                                value = Value::Empty; 
                             }
+                            flags.reset(); 
                         }
-
                     }, 
                     Ok(Event::Eof) => break, 
                     _ => {} 
@@ -259,6 +286,7 @@ impl Sheet {
     }
 }
 
+#[derive(Debug)]
 pub struct SharedString(Box<String>); 
 pub struct Style {
     pub number_format_id: usize, 
@@ -278,12 +306,14 @@ impl Style {
 
 }
 
+#[derive(Debug)]
 struct SheetFlags {
     is_shared_formula: bool, 
     is_date: bool, 
     is_formula: bool, 
     is_string: bool, 
     is_value: bool, 
+    current_cell_reference: String
 }
 
 impl SheetFlags {
@@ -293,7 +323,8 @@ impl SheetFlags {
             is_date: false, 
             is_formula: false, 
             is_string: false, 
-            is_value: false
+            is_value: false, 
+            current_cell_reference: String::new()
         }
     }
     
@@ -303,6 +334,7 @@ impl SheetFlags {
         self.is_formula = false;
         self.is_string = false; 
         self.is_value = false; 
+        self.current_cell_reference = String::new(); 
     }
 
     fn has_content(&self) -> bool {
@@ -320,7 +352,7 @@ mod tests {
         book.load().expect("Could not load workbook"); 
         assert_eq!(&book.sheets[0].name(), "test 1");
         assert_eq!(&book.sheets[1].name(), "test 2");
-        assert_eq!(&book.sheets[2].name(), "test 3");
+        assert_eq!(&book.sheets[2].name(), "test 4");
     }
 }
 
