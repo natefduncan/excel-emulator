@@ -221,18 +221,9 @@ impl Book {
     }
 
     pub fn zip_from_path(path: &str) -> ZipType {
-        println!("{:?}", path); 
         let file: File = File::open(path).expect("Unable to find file"); 
         zip::ZipArchive::new(file).expect("Unable to create zip") 
     }
-
-    
-        // if let Some(SharedString(s)) = self.shared_strings.get(index) {
-            // s
-        // } else {
-            // panic!("Shared string table does not have index {}", index)
-        // }
-    // }
 
     pub fn decode_text_event(reader: &Reader<BufReader<ZipFile>>, e: &BytesText) -> String {
         e.unescape_and_decode(reader).unwrap()
