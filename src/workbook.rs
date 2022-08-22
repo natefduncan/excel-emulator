@@ -11,6 +11,9 @@ use quick_xml::{
     }, 
 };
 use anyhow::Result; 
+use crate::evaluate::Value; 
+use crate::utils::excel_to_date; 
+
 pub type ZipType = ZipArchive<File>; 
 
 pub struct Book {
@@ -127,7 +130,66 @@ impl Book {
     }
 
     pub fn load_sheets(&mut self) -> Result<()> { Ok(()) }
-    pub fn load_sheet(&mut self, sheet_name: &str) -> Result<()> {
+    pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<()> {
+        let mut buf = Vec::new();
+        if let Ok(f) = self.zip.by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
+            let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
+            let mut flags = SheetFlags::new(); 
+            loop {
+                match reader.read_event(&mut buf) {
+                   Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) if e.name() == b"c" => {
+                        for a in e.attributes() {
+                            let a = a.unwrap(); 
+                            match a.key {
+                                b"r" => {
+                                    // Cell reference
+                                }, 
+                                b"t" => {
+                                    // Cell type
+                                },
+                                b"s" => {
+                                    // Cell style / date
+                                }, 
+                                _ => {}
+                            }
+                        }
+                    }, 
+                    Ok(Event::Start(ref e)) if e.name() == b"f" => {
+                        // Shared formula flag
+
+                    }, 
+                    Ok(Event::Empty(ref e)) if e.name() == b"f" => {
+                        // Shared formula
+
+                    }, 
+                    Ok(Event::Start(ref e)) if e.name() == b"v" => {
+                        // Value
+                    }, 
+                    Ok(Event::Text(ref e)) => {
+                        if flags.has_content() {
+                            let cell_text = Book::decode_text_event(&reader, e); 
+                            if flags.is_formula {
+                                //TODO: Deal with formulas
+                                let value = Value::from(cell_text); 
+                            } else if flags.is_string {
+                                let value = Value::from(cell_text); 
+                            } else if flags.is_date {
+                                let value = Value::from(excel_to_date(cell_text.parse::<f64>().unwrap())); 
+                            } else if !cell_text.is_empty() {
+                                let value = match &*cell_text {
+                                    "TRUE" => Value::Bool(true), 
+                                    "FALSE" => Value::Bool(false), 
+                                    _ => Value::Num(cell_text.parse::<f32>().expect("Unable to parse to number"))
+                                }; 
+                            }
+                        }
+
+                    }, 
+                    Ok(Event::Eof) => break, 
+                    _ => {} 
+                }
+            }
+        }
         Ok(())
     }
 
@@ -137,7 +199,7 @@ impl Book {
         zip::ZipArchive::new(file).expect("Unable to create zip") 
     }
 
-    // fn get_shared_string_by_index(&self, index: usize) -> &Box<String> {
+    
         // if let Some(SharedString(s)) = self.shared_strings.get(index) {
             // s
         // } else {
@@ -221,7 +283,7 @@ struct SheetFlags {
     is_date: bool, 
     is_formula: bool, 
     is_string: bool, 
-    is_value: bool
+    is_value: bool, 
 }
 
 impl SheetFlags {
@@ -241,6 +303,10 @@ impl SheetFlags {
         self.is_formula = false;
         self.is_string = false; 
         self.is_value = false; 
+    }
+
+    fn has_content(&self) -> bool {
+        self.is_formula || self.is_value
     }
 }
 
