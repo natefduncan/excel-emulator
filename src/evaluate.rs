@@ -1,4 +1,4 @@
-use time::Date; 
+use chrono::NaiveDate; 
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
@@ -10,7 +10,7 @@ type NumType = f32;
 type BoolType = bool;
 type TextType = String; 
 type ArrayType = Vec<Value>;
-type DateType = Date; 
+type DateType = NaiveDate; 
 
 #[derive(Clone, PartialEq)]
 pub enum Value { 
@@ -27,7 +27,7 @@ impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
 impl From<Vec<Value>> for Value { fn from(v: ArrayType) -> Value { Value::Array(v) }}
-impl From<Date> for Value { fn from(d: DateType) -> Value { Value::Date(d) }}
+impl From<NaiveDate> for Value { fn from(d: DateType) -> Value { Value::Date(d) }}
 impl From<Expr> for Value {
     fn from(expr: Expr) -> Value {
         match expr {
