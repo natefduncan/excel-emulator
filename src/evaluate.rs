@@ -19,6 +19,7 @@ pub enum Value {
     Text(TextType), 
     Date(DateType), 
     Array(ArrayType), 
+    Empty
 }
 
 impl From<f32> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
@@ -73,6 +74,7 @@ impl Value {
     pub fn is_text(&self) -> bool { matches!(self, Value::Text(_)) }
     pub fn is_date(&self) -> bool { matches!(self, Value::Date(_)) }
     pub fn is_array(&self) -> bool { matches!(self, Value::Array(_)) }
+    pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
 
     pub fn as_num(&self) -> NumType {
         match self {
@@ -141,6 +143,7 @@ impl fmt::Display for Value {
                     result.and_then(|_| writeln!(f, "{}", output)) 
                 })
             }, 
+            Value::Empty => { write!(f, "Empty") }
         }
     }
 }
