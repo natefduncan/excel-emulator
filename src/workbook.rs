@@ -216,6 +216,34 @@ impl Style {
 
 }
 
+struct SheetFlags {
+    is_shared_formula: bool, 
+    is_date: bool, 
+    is_formula: bool, 
+    is_string: bool, 
+    is_value: bool
+}
+
+impl SheetFlags {
+    fn new() -> SheetFlags {
+        SheetFlags {
+            is_shared_formula: false, 
+            is_date: false, 
+            is_formula: false, 
+            is_string: false, 
+            is_value: false
+        }
+    }
+    
+    fn reset(&mut self) {
+        self.is_shared_formula = false; 
+        self.is_date = false; 
+        self.is_formula = false;
+        self.is_string = false; 
+        self.is_value = false; 
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::workbook::Book;
