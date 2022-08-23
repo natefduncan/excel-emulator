@@ -3,6 +3,7 @@ use zip::read::{ZipArchive, ZipFile};
 use std::fs::File;
 use std::fmt; 
 use std::io::BufReader; 
+use std::collections::HashMap; 
 use quick_xml::{
     Reader, 
     events::{
@@ -11,23 +12,26 @@ use quick_xml::{
     }, 
 };
 use anyhow::Result; 
+use ndarray::{Array2, Array}; 
 use crate::evaluate::Value; 
 use crate::utils::excel_to_date; 
+use crate::reference::Reference;
+use crate::cell::Cell; 
 
 pub type ZipType = ZipArchive<File>; 
 
 pub struct Book {
-    path: String,
     zip: ZipType, 
     sheets: Vec<Sheet>, 
     shared_strings: Vec<SharedString>, 
-    styles: Vec<Style>
+    styles: Vec<Style>, 
+    cells: HashMap<Sheet, Array2<Value>>
 }
 
 impl From<String> for Book {
     fn from(s: String) -> Self {
         let zip = Self::zip_from_path(&s); 
-        Book { path: s, zip, sheets: vec![], shared_strings: vec![], styles: vec![] }
+        Book { zip, sheets: vec![], shared_strings: vec![], styles: vec![], cells: HashMap::new() }
     }
 }
 
@@ -145,7 +149,21 @@ impl Book {
             let mut flags = SheetFlags::new(); 
             loop {
                 match reader.read_event(&mut buf) {
-                   Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) if e.name() == b"c" => {
+                    Ok(Event::Empty(ref e)) if e.name() == b"dimension" => {
+                        for a in e.attributes() {
+                            let a = a.unwrap(); 
+                            match a.key {
+                                b"ref" => {
+                                    let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
+                                    let (_row, _column, num_rows, num_cols) = Reference::from(dimension).get_dimensions(); 
+                                    let sheet: Sheet = self.sheets.get(sheet_idx).unwrap().clone();
+                                    self.cells.insert(sheet, Array::from_elem((num_rows, num_cols), Value::Empty)); 
+                                }, 
+                                _ => {}
+                            }
+                        }
+                    }, 
+                    Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) if e.name() == b"c" => {
                         for a in e.attributes() {
                             let a = a.unwrap(); 
                             match a.key {
@@ -210,6 +228,10 @@ impl Book {
                                 value = Value::Empty; 
                             }
                             // println!("{}, {}", flags.current_cell_reference, value); 
+                            let sheet = self.sheets.get(sheet_idx).unwrap(); 
+                            let cell = Cell::from(flags.current_cell_reference.clone()); 
+                            let (row, column): (usize, usize) = cell.as_tuple(); 
+                            self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = value; 
                             flags.reset(); 
                         }
                     }, 
@@ -254,9 +276,17 @@ impl Book {
         }
         Style { number_format_id, apply_number_format }
     }
+
+    pub fn get_sheet_by_name(&self, s: &str) -> &Array2<Value> {
+       self.cells.get(&Sheet(s.to_owned())).unwrap()
+    }
+
+    pub fn get_sheet_by_idx(&self, idx: usize) -> &Array2<Value> {
+        self.cells.get(&self.sheets[idx]).unwrap()
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Sheet(String); 
 impl From<&str> for Sheet {
     fn from(s: &str) -> Sheet {
@@ -328,10 +358,6 @@ impl SheetFlags {
         self.is_value = false; 
         self.current_cell_reference = String::new(); 
     }
-
-    fn has_content(&self) -> bool {
-        self.is_formula || self.is_value
-    }
 }
 
 #[cfg(test)]
@@ -339,12 +365,21 @@ mod tests {
     use crate::workbook::Book;
 
     #[test]
-    fn sheet_names() {
+    fn test_sheet_names() {
         let mut book = Book::from("assets/data_types.xlsx"); 
         book.load().expect("Could not load workbook"); 
         assert_eq!(&book.sheets[0].name(), "test 1");
         assert_eq!(&book.sheets[1].name(), "test 2");
         assert_eq!(&book.sheets[2].name(), "test 3");
+    }
+
+    #[test]
+    fn test_cells() {
+        let mut book = Book::from("assets/data_types.xlsx"); 
+        book.load().expect("Could not load workbook"); 
+        println!("{}", book.get_sheet_by_name("test 1")); 
+        assert_eq!(&book.sheets[2].name(), "test 4");  
+ 
     }
 }
 

@@ -12,7 +12,7 @@ type TextType = String;
 type ArrayType = Vec<Value>;
 type DateType = NaiveDate; 
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Value { 
     Num(NumType), 
     Bool(BoolType), 
