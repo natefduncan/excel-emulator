@@ -6,3 +6,5 @@ pub mod evaluate;
 pub mod utils;
 pub mod function; 
 pub mod workbook; 
+pub mod cell; 
+pub mod reference; 
