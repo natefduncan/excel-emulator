@@ -209,7 +209,7 @@ impl Book {
                             let value: Value; 
                             if flags.is_formula {
                                 //TODO: Deal with formulas
-                                value = Value::from(format!("={}", &cell_text.replace("_xlfn.", "").to_owned())); 
+                                value = Value::Formula(format!("={}", &cell_text.replace("_xlfn.", "").to_owned())); 
                             } else if flags.is_string {
                                 let shared_string_idx: usize = cell_text.parse::<usize>().unwrap();
                                 let SharedString(s) = self.shared_strings.get(shared_string_idx).unwrap();
@@ -363,6 +363,7 @@ impl SheetFlags {
 #[cfg(test)]
 mod tests {
     use crate::workbook::Book;
+    use crate::evaluate::Value;
 
     #[test]
     fn test_sheet_names() {
@@ -377,9 +378,10 @@ mod tests {
     fn test_cells() {
         let mut book = Book::from("assets/data_types.xlsx"); 
         book.load().expect("Could not load workbook"); 
-        println!("{}", book.get_sheet_by_name("test 1")); 
-        assert_eq!(&book.sheets[2].name(), "test 4");  
- 
+        assert_eq!(book.get_sheet_by_name("test 1")[[0, 0]], Value::from("Text")); 
+        assert_eq!(book.get_sheet_by_name("test 1")[[1, 0]], Value::from("a")); 
+        assert_eq!(book.get_sheet_by_name("test 1")[[2, 0]], Value::from("b")); 
+        assert_eq!(book.get_sheet_by_name("test 1")[[3, 0]], Value::from("c")); 
     }
 }
 
