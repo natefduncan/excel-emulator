@@ -19,6 +19,7 @@ pub enum Value {
     Text(TextType), 
     Date(DateType), 
     Array(ArrayType), 
+    Formula(TextType), 
     Empty
 }
 
@@ -75,6 +76,7 @@ impl Value {
     pub fn is_date(&self) -> bool { matches!(self, Value::Date(_)) }
     pub fn is_array(&self) -> bool { matches!(self, Value::Array(_)) }
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
+    pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
 
     pub fn as_num(&self) -> NumType {
         match self {
@@ -107,12 +109,12 @@ impl Value {
     }
 
     pub fn as_text(&self) -> TextType {
-        if let Value::Text(x) = self {
-            x.clone()
-        } else {
-            panic!("{} cannot be converted to a string.", self); 
-        }
-    }
+        match self {
+            Value::Text(x) 
+            | Value::Formula(x) => x.clone(), 
+            _ => panic!("{} cannot be converted to a string.", self)
+        } 
+   }
 
     pub fn as_date(&self) -> DateType {
         if let Value::Date(x) = self {
@@ -136,7 +138,7 @@ impl fmt::Display for Value {
         match self {
             Value::Num(x) => { write!(f, "{}", x) }, 
             Value::Bool(x) => { write!(f, "{}", if *x { "TRUE" } else { "FALSE" }) }, 
-            Value::Text(x) => { write!(f, "{}", x) }, 
+            Value::Text(x) | Value::Formula(x) => { write!(f, "{}", x) }, 
             Value::Date(x) => { write!(f, "{}", x) }, 
             Value::Array(x) => {
                 x.iter().fold(Ok(()), |result, output| {
