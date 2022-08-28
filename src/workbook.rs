@@ -13,7 +13,7 @@ use quick_xml::{
 };
 use anyhow::Result; 
 use ndarray::{Array2, Array}; 
-use crate::evaluate::Value; 
+use crate::{evaluate::Value, utils::adjust_formula}; 
 use crate::utils::excel_to_date; 
 use crate::reference::Reference;
 use crate::cell::Cell; 
@@ -193,10 +193,32 @@ impl Book {
                     Ok(Event::Start(ref e)) if e.name() == b"f" => {
                         // Formula flag
                         flags.is_formula = true;
+                        for a in e.attributes() {
+                            let a = a.unwrap();
+                            if a.key == b"ref" {
+                                flags.is_shared_formula = true; 
+                            }
+                        }
                     }, 
                     Ok(Event::Empty(ref e)) if e.name() == b"f" => {
                         // Shared formula
-
+                        for a in e.attributes() {
+                            let a = a.unwrap();
+                            match a.key {
+                                b"si" => {
+                                    let formula_index: usize = a.unescape_and_decode_value(&reader).unwrap().parse::<usize>().unwrap(); 
+                                    let (start_cell, formula_text): &(Cell, String) = flags.shared_formulas.get(formula_index).unwrap(); 
+                                    let base_reference = Reference::from(start_cell.as_tuple()); 
+                                    let current_cell = Cell::from(flags.current_cell_reference.clone()); 
+                                    let current_reference = Reference::from(current_cell.as_tuple());
+                                    let adjusted_formula: Value = Value::Formula(adjust_formula(base_reference, current_reference, formula_text.clone())); 
+                                    let sheet = self.sheets.get(sheet_idx).unwrap(); 
+                                    let (row, column): (usize, usize) = current_cell.as_tuple(); 
+                                    self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = adjusted_formula; 
+                                }, 
+                                _ => {}
+                            }
+                        }
                     }, 
                     Ok(Event::Start(ref e)) if e.name() == b"v" => {
                         // Value
@@ -208,8 +230,12 @@ impl Book {
                             let cell_text = Book::decode_text_event(&reader, e); 
                             let value: Value; 
                             if flags.is_formula {
-                                //TODO: Deal with formulas
                                 value = Value::Formula(format!("={}", &cell_text.replace("_xlfn.", "").to_owned())); 
+                                if flags.is_shared_formula {
+                                    flags.shared_formulas.push(
+                                        (Cell::from(flags.current_cell_reference.clone()), cell_text.clone())
+                                    )
+                                }
                             } else if flags.is_string {
                                 let shared_string_idx: usize = cell_text.parse::<usize>().unwrap();
                                 let SharedString(s) = self.shared_strings.get(shared_string_idx).unwrap();
@@ -335,7 +361,8 @@ struct SheetFlags {
     is_formula: bool, 
     is_string: bool, 
     is_value: bool, 
-    current_cell_reference: String
+    current_cell_reference: String, 
+    shared_formulas: Vec<(Cell, String)>, // Start Cell, Formula
 }
 
 impl SheetFlags {
@@ -346,7 +373,8 @@ impl SheetFlags {
             is_formula: false, 
             is_string: false, 
             is_value: false, 
-            current_cell_reference: String::new()
+            current_cell_reference: String::new(), 
+            shared_formulas: vec![]
         }
     }
     
