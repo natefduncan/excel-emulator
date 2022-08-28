@@ -211,10 +211,12 @@ impl Book {
                                     let base_reference = Reference::from(start_cell.as_tuple()); 
                                     let current_cell = Cell::from(flags.current_cell_reference.clone()); 
                                     let current_reference = Reference::from(current_cell.as_tuple());
-                                    let adjusted_formula: Value = Value::Formula(adjust_formula(base_reference, current_reference, formula_text.clone())); 
+                                    let adjusted_formula: Value = Value::Formula(format!("={}", adjust_formula(base_reference, current_reference, formula_text.clone()))); 
                                     let sheet = self.sheets.get(sheet_idx).unwrap(); 
                                     let (row, column): (usize, usize) = current_cell.as_tuple(); 
+                                    // println!("{}, {}", flags.current_cell_reference, adjusted_formula); 
                                     self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = adjusted_formula; 
+                                    flags.reset(); 
                                 }, 
                                 _ => {}
                             }
@@ -410,6 +412,9 @@ mod tests {
         assert_eq!(book.get_sheet_by_name("test 1")[[1, 0]], Value::from("a")); 
         assert_eq!(book.get_sheet_by_name("test 1")[[2, 0]], Value::from("b")); 
         assert_eq!(book.get_sheet_by_name("test 1")[[3, 0]], Value::from("c")); 
+        assert_eq!(book.get_sheet_by_name("test 1")[[1, 4]], Value::Formula(String::from("=B2+1"))); 
+        assert_eq!(book.get_sheet_by_name("test 1")[[2, 4]], Value::Formula(String::from("=B3+1"))); 
+        assert_eq!(book.get_sheet_by_name("test 1")[[3, 4]], Value::Formula(String::from("=(B4+1)")));
     }
 }
 
