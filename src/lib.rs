@@ -8,3 +8,4 @@ pub mod function;
 pub mod workbook; 
 pub mod cell; 
 pub mod reference; 
+pub mod dependency; 
