@@ -174,9 +174,9 @@ mod tests {
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&b, &c); // B must calculate before C 
         let mut order: Vec<CellId> = tree.get_order(); 
-        assert_eq!(order.pop().unwrap(), a);
-        assert_eq!(order.pop().unwrap(), b);
         assert_eq!(order.pop().unwrap(), c);
+        assert_eq!(order.pop().unwrap(), b);
+        assert_eq!(order.pop().unwrap(), a);
     }
 }
 

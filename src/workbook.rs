@@ -411,9 +411,6 @@ mod tests {
         assert_eq!(&book.sheets[0].name(), "test 1");
         assert_eq!(&book.sheets[1].name(), "test 2");
         assert_eq!(&book.sheets[2].name(), "test 3");
-        println!("{}", book.dependencies); 
-        println!("{:?}", book.dependencies.get_order()); 
-        assert_eq!(&book.sheets[2].name(), "test 4");
     }
 
     #[test]
