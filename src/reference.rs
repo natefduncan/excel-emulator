@@ -175,6 +175,17 @@ impl Reference {
         )
     }
 
+    pub fn get_cells(&self) -> Vec<(usize, usize)> {
+        let (start_row, start_column, num_rows, num_cols) = self.get_dimensions();
+        let mut output: Vec<(usize, usize)> = vec![]; 
+        for row in start_row..(start_row + num_rows) {
+            for column in start_column..(start_column + num_cols) {
+                output.push((row, column)); 
+            }
+        }
+        output
+    }
+
     pub fn offset(&mut self, offset: (i32, i32)) {
         if !self.start_cell.row.anchor && !self.start_cell.is_vrange() {
                 self.start_cell.row.index = (self.row() as i32 + offset.0) as usize;

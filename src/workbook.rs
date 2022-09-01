@@ -13,10 +13,14 @@ use quick_xml::{
 };
 use anyhow::Result; 
 use ndarray::{Array2, Array}; 
-use crate::{evaluate::Value, utils::adjust_formula}; 
-use crate::utils::excel_to_date; 
-use crate::reference::Reference;
-use crate::cell::Cell; 
+use crate::{
+    evaluate::Value, 
+    utils::adjust_formula, 
+    dependency::{CellId, DependencyTree}, 
+    utils::excel_to_date, 
+    reference::Reference,
+    cell::Cell, 
+}; 
 
 pub type ZipType = ZipArchive<File>; 
 
@@ -25,13 +29,14 @@ pub struct Book {
     sheets: Vec<Sheet>, 
     shared_strings: Vec<SharedString>, 
     styles: Vec<Style>, 
+    dependencies: DependencyTree, 
     cells: HashMap<Sheet, Array2<Value>>
 }
 
 impl From<String> for Book {
     fn from(s: String) -> Self {
         let zip = Self::zip_from_path(&s); 
-        Book { zip, sheets: vec![], shared_strings: vec![], styles: vec![], cells: HashMap::new() }
+        Book { zip, sheets: vec![], shared_strings: vec![], styles: vec![], cells: HashMap::new(), dependencies: DependencyTree::new() }
     }
 }
 
@@ -215,7 +220,8 @@ impl Book {
                                     let sheet = self.sheets.get(sheet_idx).unwrap(); 
                                     let (row, column): (usize, usize) = current_cell.as_tuple(); 
                                     // println!("{}, {}", flags.current_cell_reference, adjusted_formula); 
-                                    self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = adjusted_formula; 
+                                    self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = adjusted_formula.clone(); 
+                                    self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &adjusted_formula.to_string(), &self.sheets); 
                                     flags.reset(); 
                                 }, 
                                 _ => {}
@@ -259,8 +265,11 @@ impl Book {
                             let sheet = self.sheets.get(sheet_idx).unwrap(); 
                             let cell = Cell::from(flags.current_cell_reference.clone()); 
                             let (row, column): (usize, usize) = cell.as_tuple(); 
+                            if value.is_formula() {
+                                self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &value.to_string(), &self.sheets); 
+                            }
                             self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = value; 
-                            flags.reset(); 
+                           flags.reset(); 
                         }
                     }, 
                     Ok(Event::Eof) => break, 
@@ -315,7 +324,7 @@ impl Book {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Sheet(String); 
+pub struct Sheet(pub String); 
 impl From<&str> for Sheet {
     fn from(s: &str) -> Sheet {
         Sheet(s.to_string())
@@ -402,6 +411,9 @@ mod tests {
         assert_eq!(&book.sheets[0].name(), "test 1");
         assert_eq!(&book.sheets[1].name(), "test 2");
         assert_eq!(&book.sheets[2].name(), "test 3");
+        println!("{}", book.dependencies); 
+        println!("{:?}", book.dependencies.get_order()); 
+        assert_eq!(&book.sheets[2].name(), "test 4");
     }
 
     #[test]

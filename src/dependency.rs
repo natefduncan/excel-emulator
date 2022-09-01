@@ -4,12 +4,17 @@ use petgraph::{
     dot::{Dot, Config}
 }; 
 use std::{fmt, cmp::Ordering}; 
+use crate::{
+    workbook::Sheet,
+    excel::ExprParser, 
+    parse::Expr, reference::Reference, 
+}; 
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct CellId {
-    sheet: usize, 
-    row: usize,
-    column: usize
+    pub sheet: usize, 
+    pub row: usize,
+    pub column: usize
 }
 
 impl PartialOrd for CellId {
@@ -59,6 +64,48 @@ impl DependencyTree {
         DependencyTree { tree: DiGraphMap::new() }
     }
 
+    pub fn add_formula(&mut self, cell: CellId, formula_text: &str, sheets: &Vec<Sheet>) {
+        let mut chars = formula_text.chars();
+        chars.next(); // FIXME: Parse can't handle the = in the front of a formula
+        let expression = ExprParser::new().parse(chars.as_str()).unwrap();
+        self.add_expression(cell, *expression, sheets); 
+    }
+
+    pub fn add_expression(&mut self, cell: CellId, expression: Expr, sheets: &Vec<Sheet>) {
+        match expression {
+            Expr::Cell { sheet, reference } => {
+                let sheet_id = match sheet {
+                    Some(s) => {
+                        sheets.iter().position(|x|  {
+                            let Sheet(x) = x; 
+                            x == &s
+                        }).unwrap()
+                    }, 
+                    None => cell.sheet
+                }; 
+                let reference = Reference::from(reference.to_string()); 
+                for c in reference.get_cells() {
+                    self.add_precedent(&CellId { sheet: sheet_id, row: c.0, column: c.1 }, &cell); 
+                }
+            },
+            Expr::Op(a, _, b) => {
+                self.add_expression(cell, *a, sheets); 
+                self.add_expression(cell, *b, sheets); 
+            }, 
+            Expr::Func { name: _, args } => {
+                for arg in args.into_iter() {
+                    self.add_expression(cell, *arg, sheets); 
+                }
+            }, 
+            Expr::Array(arr) => {
+                for a in arr.into_iter() {
+                    self.add_expression(cell, *a, sheets); 
+                }
+            }, 
+            _ => {}
+        }
+    }
+
     pub fn add_cell(&mut self, cell: CellId) {
         self.tree.add_node(cell); 
     }
@@ -72,7 +119,7 @@ impl DependencyTree {
     pub fn add_precedent(&mut self, precedent: &CellId, cell: &CellId) {
         self.add_cell_if_missing(precedent);
         self.add_cell_if_missing(cell);
-        if !self.tree.contains_edge(*precedent, *cell) {
+        if !self.tree.contains_edge(*cell, *precedent) {
             self.tree.add_edge(*precedent, *cell, 0); 
         }
    } 
@@ -88,11 +135,11 @@ impl DependencyTree {
     pub fn get_order(&self) -> Vec<CellId> {
         match toposort(&self.tree, None) {
             Ok(order) => {
-                order.into_iter().rev().collect::<Vec<CellId>>()
+                order
+                // order.into_iter().rev().collect::<Vec<CellId>>()
             }, 
             Err(e) => panic!("{:?}", e) 
         } 
-
     } 
 }
 
