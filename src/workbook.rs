@@ -26,11 +26,11 @@ pub type ZipType = ZipArchive<File>;
 
 pub struct Book {
     zip: ZipType, 
-    sheets: Vec<Sheet>, 
+    pub sheets: Vec<Sheet>, 
     shared_strings: Vec<SharedString>, 
     styles: Vec<Style>, 
-    dependencies: DependencyTree, 
-    cells: HashMap<Sheet, Array2<Value>>
+    pub dependencies: DependencyTree, 
+    pub cells: HashMap<Sheet, Array2<Value>>
 }
 
 impl From<String> for Book {
