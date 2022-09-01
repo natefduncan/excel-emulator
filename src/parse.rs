@@ -186,6 +186,7 @@ mod tests {
         assert_eq!(&parse_expr("1 <> 1"), "(1<>1)");
         assert_eq!(&parse_expr("1 % 1"), "(1%1)");
         assert_eq!(&parse_expr("22 * 44 + 66"), "((22*44)+66)");
+        assert_eq!(&parse_expr("(1+2)*(3+5)"), "((1+2)*(3+5))");
     }
 
     #[test] 
@@ -235,6 +236,7 @@ mod tests {
 
     #[test]
     fn test_mix() {
-        assert_eq!(&parse_expr("test({1, 2, 3, 4}, 1, 'a')"), "test({1, 2, 3, 4}, 1, \"a\")")
+        assert_eq!(&parse_expr("test({1, 2, 3, 4}, 1, 'a')"), "test({1, 2, 3, 4}, 1, \"a\")");
+        assert_eq!(&parse_expr("(1+2)+(10+test!A1)"), "((1+2)*(10+test!A1))"); 
     }
 }
