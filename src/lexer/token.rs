@@ -27,6 +27,7 @@ pub enum Token {
     Equal,
 	Exclamation, 
     Comma,
+    Period, 
     Colon,
     SemiColon,
     LAngle,

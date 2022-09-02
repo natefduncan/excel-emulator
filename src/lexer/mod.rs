@@ -39,6 +39,7 @@ syntax! {ampersand, "&", Token::Ampersand}
 syntax! {equal, "=", Token::Equal}
 syntax! {exclamation, "!", Token::Exclamation}
 syntax! {comma, ",", Token::Comma}
+syntax! {period, ".", Token::Period}
 syntax! {colon, ":", Token::Colon}
 syntax! {semicolon, ";", Token::SemiColon}
 syntax! {langle, "<", Token::LAngle}
@@ -77,6 +78,7 @@ pub fn lex_syntax(input: &[u8]) -> IResult<&[u8], Token> {
                     exclamation, 
                     comma, 
                     colon, 
+                    period, 
                     semicolon, 
                     langle, 
                     rangle, 
@@ -173,11 +175,14 @@ impl Lexer {
 mod tests {
 	use super::*; 
 
+	fn lex(b: &[u8]) -> Vec<Token> {
+        let (_, result) = Lexer::lex_tokens(b).unwrap(); 
+        result
+    }
+
 	#[test]
-	fn test_lexer1() {
-        let input = b"=+(){},;";
-        let (_, result) = Lexer::lex_tokens(input).unwrap();
-        let expected_results = vec![
+	fn test_symbols() {
+        assert_eq!(lex(b"=+(){},;"), vec![
 			Token::Equal, 
             Token::Plus,
             Token::LParen,
@@ -186,18 +191,44 @@ mod tests {
             Token::RBrace,
             Token::Comma,
             Token::SemiColon,
-        ];
-        assert_eq!(result, expected_results);
+        ]);
 	}
 
     #[test]
     fn test_strings() {
-        let input = b"\"this is a test\"";
-        let (_, result) = Lexer::lex_tokens(input).unwrap();
-        let expected_results = vec![
+        assert_eq!(lex(b"\"this is a test\""), vec![
             Token::Text(String::from("this is a test")), 
-        ];
-        assert_eq!(result, expected_results);
+        ]);
+        assert_eq!(lex(b"\"this\", \"is\" \"a\" \"test\""), vec![
+            Token::Text(String::from("this")), 
+            Token::Comma, 
+            Token::Text(String::from("is")), 
+            Token::Text(String::from("a")), 
+            Token::Text(String::from("test")), 
+        ]);
+    }
 
+    #[test]
+    fn test_ints() {
+        assert_eq!(lex(b"123"), vec![
+            Token::Integer(123), 
+        ]); 
+        assert_eq!(lex(b"12.30"), vec![
+            Token::Integer(12),
+            Token::Period, 
+            Token::Integer(30)
+        ]); 
+
+    }
+
+    #[test]
+    fn test_errors() {
+        assert_eq!(lex(b"#NUM!"), vec![Token::Num]); 
+        assert_eq!(lex(b"#DIV/0!"), vec![Token::Div]); 
+        assert_eq!(lex(b"#VALUE!"), vec![Token::Value]); 
+        assert_eq!(lex(b"#REF!"), vec![Token::Ref]); 
+        assert_eq!(lex(b"#NAME!"), vec![Token::Name]); 
+        assert_eq!(lex(b"#N/A"), vec![Token::NA]); 
+        assert_eq!(lex(b"#GETTING_DATA"), vec![Token::GettingData]); 
     }
 }
