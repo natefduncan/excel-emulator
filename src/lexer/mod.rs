@@ -10,7 +10,8 @@ use std::str;
 use std::str::FromStr;
 use std::str::Utf8Error;
 
-use crate::lexer::{Token, Tokens}; 
+pub mod token; 
+use crate::lexer::token::*; 
 
 macro_rules! syntax {
     ($func_name: ident, $tag_string: literal, $output_token: expr) => {
@@ -30,7 +31,7 @@ syntax! {num_err, "#NUM!", Token::Num}
 syntax! {na_err, "#N/A", Token::NA}
 syntax! {getting_data_err, "#GETTING_DATA", Token::GettingData}
 syntax! {plus, "+", Token::Plus}
-syntax! {subtract, "-", Token::Subtract}
+syntax! {minus, "-", Token::Minus}
 syntax! {divide, "/", Token::Divide}
 syntax! {multiply, "*", Token::Multiply}
 syntax! {exponent, "^", Token::Exponent}
@@ -48,36 +49,44 @@ syntax! {lbrace, "{", Token::LBrace}
 syntax! {rbrace, "}", Token::RBrace}
 syntax! {lbracket, "[", Token::LBracket}
 syntax! {rbracket, "]", Token::RBracket}
+syntax! {true_bool, "TRUE", Token::Boolean(true)}
+syntax! {false_bool , "FALSE", Token::Boolean(false)}
 
 pub fn lex_syntax(input: &[u8]) -> IResult<&[u8], Token> {
     alt((
-		null_err, 
-		div_err, 
-		value_err, 
-		ref_err, 
-		name_err, 
-		num_err, 
-		na_err, 
-		getting_data_err, 
-		plus,
-		subtract, 
-		divide, 
-		multiply, 
-		exponent, 
-		ampersand, 
-		equal, 
-		exclamation, 
-		comma, 
-		colon, 
-		semicolon, 
-		langle, 
-		rangle, 
-		lparen, 
-		rparen, 
-		lbrace, 
-		rbrace, 
-		lbracket, 
-		rbracket
+            alt((
+                    null_err, 
+                    div_err, 
+                    value_err, 
+                    ref_err, 
+                    name_err, 
+                    num_err, 
+                    na_err, 
+                    getting_data_err
+            )), 
+            alt((
+                    plus,
+                    minus, 
+                    divide, 
+                    multiply, 
+                    exponent 
+            )), 
+            alt((
+                    ampersand, 
+                    equal, 
+                    exclamation, 
+                    comma, 
+                    colon, 
+                    semicolon, 
+                    langle, 
+                    rangle, 
+                    lparen, 
+                    rparen, 
+                    lbrace, 
+                    rbrace, 
+                    lbracket, 
+                    rbracket
+            ))
     ))(input)
 }
 
@@ -147,10 +156,12 @@ fn lex_tokens(input: &[u8]) -> IResult<&[u8], Vec<Token>> {
     many0(delimited(multispace0, lex_token, multispace0))(input)
 }
 
+
+pub struct Lexer; 
 impl Lexer {
     pub fn lex_tokens(bytes: &[u8]) -> IResult<&[u8], Vec<Token>> {
 		lex_tokens(bytes)
-			.map(|(slice, result)| (slice, [&result[..], &vec![Token::EOF][..]].concat()))
+			.map(|(slice, result)| (slice, [&result[..]].concat()))
 	}
 }
 
