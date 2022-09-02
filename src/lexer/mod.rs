@@ -86,6 +86,10 @@ pub fn lex_syntax(input: &[u8]) -> IResult<&[u8], Token> {
                     rbrace, 
                     lbracket, 
                     rbracket
+            )),
+            alt((
+                    true_bool, 
+                    false_bool
             ))
     ))(input)
 }
@@ -171,9 +175,8 @@ mod tests {
 
 	#[test]
 	fn test_lexer1() {
-        let input = &b"=+(){},;";
+        let input = b"=+(){},;";
         let (_, result) = Lexer::lex_tokens(input).unwrap();
-
         let expected_results = vec![
 			Token::Equal, 
             Token::Plus,
@@ -184,7 +187,17 @@ mod tests {
             Token::Comma,
             Token::SemiColon,
         ];
-
         assert_eq!(result, expected_results);
 	}
+
+    #[test]
+    fn test_strings() {
+        let input = b"\"this is a test\"";
+        let (_, result) = Lexer::lex_tokens(input).unwrap();
+        let expected_results = vec![
+            Token::Text(String::from("this is a test")), 
+        ];
+        assert_eq!(result, expected_results);
+
+    }
 }
