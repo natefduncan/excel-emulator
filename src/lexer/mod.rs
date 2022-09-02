@@ -1,9 +1,9 @@
 use nom::branch::*;
 use nom::bytes::complete::{tag, take};
-use nom::character::complete::{alpha1, alphanumeric1, digit1, multispace0};
-use nom::combinator::{map, map_res, recognize};
+use nom::character::complete::{digit1, multispace0};
+use nom::combinator::{map, map_res,};
 use nom::multi::many0;
-use nom::sequence::{delimited, pair};
+use nom::sequence::delimited;
 use nom::*;
 
 use std::str;
