@@ -231,4 +231,10 @@ mod tests {
         assert_eq!(lex(b"#N/A"), vec![Token::NA]); 
         assert_eq!(lex(b"#GETTING_DATA"), vec![Token::GettingData]); 
     }
+
+    #[test]
+    fn test_bool() {
+        assert_eq!(lex(b"TRUE"), vec![Token::Boolean(true)]); 
+        assert_eq!(lex(b"FALSE"), vec![Token::Boolean(false)]); 
+    }
 }
