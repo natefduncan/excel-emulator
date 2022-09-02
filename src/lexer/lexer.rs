@@ -5,7 +5,7 @@ use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
 #[derive(PartialEq, Debug, Clone)]
 pub enum Token {
     //Literal
-    Number(f32),
+    Integer(i64),
     Boolean(bool), 
     Text(String), 
     // Error
