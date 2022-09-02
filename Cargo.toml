@@ -20,6 +20,7 @@ function-macro = { version = "0.1.0", path = "function-macro" }
 lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
 lalrpop-util = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
 ndarray = "0.15.6"
+nom = "7.1.1"
 petgraph = "0.6.2"
 quick-xml = { version = "0.23.0", features = ["serde", "serialize", "encoding"] }
 regex = "1.6.0"
