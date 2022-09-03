@@ -1,7 +1,9 @@
+use std::fmt;  
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Ident(Ident),
-    Lit(Literal),
+    Literal(Literal),
     Prefix(Prefix, Box<Expr>),
     Infix(Infix, Box<Expr>, Box<Expr>),
 	Func {
@@ -16,7 +18,10 @@ pub enum Expr {
     Error(Error)
 }
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
+pub struct Ident(String); 
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Error {
     Null,
     Div, 
@@ -31,8 +36,24 @@ pub enum Error {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Literal {
     Number(f64),
-    Bool(bool),
+    Boolean(bool),
     Text(String),
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Literal::Number(x) => write!(f, "{}", x.to_string()), 
+            Literal::Boolean(b) => {
+                if *b {
+                    write!(f, "{}", "TRUE")
+                } else {
+                    write!(f, "{}", "FALSE")
+                }
+            },
+            Literal::Text(s) => write!(f, "{}", s)
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
