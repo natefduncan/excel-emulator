@@ -59,7 +59,7 @@ impl fmt::Display for Token {
             Token::Ref => write!(f, "{}", "#REF!"), 
             Token::Name => write!(f, "{}", "#NAME!"), 
             Token::Num => write!(f, "{}", "#NUM!"), 
-            Token::NA => write!(f, "{}", "#NA!"), 
+            Token::NA => write!(f, "{}", "#N/A!"), 
             Token::GettingData => write!(f, "{}", "#GETTING_DATA"), 
             Token::Plus => write!(f, "{}", "+"), 
             Token::Minus => write!(f, "{}", "-"), 
