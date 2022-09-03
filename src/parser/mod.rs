@@ -6,13 +6,12 @@ use nom::multi::many0;
 use nom::sequence::delimited;
 use nom::*;
 use nom::Err; 
-use nom::error::{Error, ErrorKind}; 
+use nom::error::{Error as NomError, ErrorKind}; 
 
 pub mod ast; 
 
-// use crate::parse::expression::{Expr, Error}; 
 use crate::lexer::token::{Token, Tokens}; 
-use crate::parser::ast::{Literal, Error as ExcelError, Expr, Infix, Prefix}; 
+use crate::parser::ast::*; 
 
 macro_rules! tag_token (
 	($func_name:ident, $tag: expr) => (
@@ -25,7 +24,7 @@ macro_rules! tag_token (
 pub fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
     let (i1, t1) = take(1usize)(input)?;
 	if t1.tok.is_empty() {
-        Err(Err::Error(Error::new(input, ErrorKind::Tag)))
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
     } else {
         match t1.tok[0].clone() {
             Token::Integer(i) => {
@@ -38,7 +37,26 @@ pub fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
             },
             Token::Text(s) => Ok((i1, Literal::Text(s))),
             Token::Boolean(b) => Ok((i1, Literal::Boolean(b))),
-            _ => Err(Err::Error(Error::new(input, ErrorKind::Tag))),
+            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag))),
+        }
+    }
+}
+
+pub fn parse_error(input: Tokens) -> IResult<Tokens, Error> {
+    let (i1, t1) = take(1usize)(input)?;
+	if t1.tok.is_empty() {
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else {
+        match t1.tok[0].clone() {
+            Token::Null => Ok((i1, Error::Null)), 
+            Token::Div => Ok((i1, Error::Div)), 
+            Token::Value => Ok((i1, Error::Value)), 
+            Token::Ref => Ok((i1, Error::Ref)), 
+            Token::Name => Ok((i1, Error::Name)), 
+            Token::Num => Ok((i1, Error::Num)), 
+            Token::NA => Ok((i1, Error::NA)), 
+            Token::GettingData => Ok((i1, Error::GettingData)), 
+            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
         }
     }
 }
@@ -68,24 +86,48 @@ fn parse_literal_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_literal, Expr::Literal)(input)
 }
 
+fn parse_error_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    map(parse_error, Expr::Error)(input)
+}
+
+fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    alt((
+        parse_error_expr, 
+        parse_literal_expr, 
+    ))(input)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse_literal_expr; 
-    use crate::parser::ast::{Expr, Literal}; 
+    use crate::parser::parse_expr; 
+    use crate::parser::ast::{Expr, Literal, Error}; 
     use crate::lexer::Lexer; 
     use crate::lexer::token::{Token, Tokens}; 
 
-    fn parse_expr(s: &str) -> Expr {
+    fn parse(s: &str) -> Expr {
         let (_, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
+        println!("{:?}", t); 
         let tokens = Tokens::new(&t); 
-        let (tokens, expr) = parse_literal_expr(tokens).unwrap(); 
+        let (tokens, expr) = parse_expr(tokens).unwrap(); 
         expr
     }
 
     #[test]
     fn test_literal() {
-        assert_eq!(parse_expr("123"), Expr::Literal(Literal::Number(123.0))); 
-        assert_eq!(parse_expr("123.12"), Expr::Literal(Literal::Number(123.12))); 
+        assert_eq!(parse("123"), Expr::Literal(Literal::Number(123.0))); 
+        assert_eq!(parse("123.12"), Expr::Literal(Literal::Number(123.12))); 
+    }
+
+    #[test]
+    fn test_errors() {
+        assert_eq!(parse("#NULL!"), Expr::Error(Error::Null)); 
+        assert_eq!(parse("#DIV/0!"), Expr::Error(Error::Div)); 
+        assert_eq!(parse("#VALUE!"), Expr::Error(Error::Value)); 
+        assert_eq!(parse("#REF!"), Expr::Error(Error::Ref)); 
+        assert_eq!(parse("#NAME!"), Expr::Error(Error::Name)); 
+        assert_eq!(parse("#NUM!"), Expr::Error(Error::Num)); 
+        assert_eq!(parse("#N/A!"), Expr::Error(Error::NA)); 
+        assert_eq!(parse("#GETTING_DATA"), Expr::Error(Error::GettingData)); 
     }
 }
 
