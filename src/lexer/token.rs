@@ -46,6 +46,7 @@ pub enum Token {
     RBrace,
     LBracket,
     RBracket,
+    Ident(String), 
 }
 
 impl fmt::Display for Token {
@@ -66,6 +67,7 @@ impl fmt::Display for Token {
             Token::Cell(s) => write!(f, "{}", s), 
             Token::VRange(s) => write!(f, "{}", s), 
             Token::HRange(s) => write!(f, "{}", s), 
+            Token::Ident(s) => write!(f, "{}", s), 
             Token::Null => write!(f, "{}", "#NULL!"), 
             Token::Div => write!(f, "{}", "#DIV/0!"), 
             Token::Value => write!(f, "{}", "#VALUE!"),

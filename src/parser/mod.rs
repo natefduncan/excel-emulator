@@ -116,6 +116,8 @@ mod tests {
     fn test_literal() {
         assert_eq!(parse("123"), Expr::Literal(Literal::Number(123.0))); 
         assert_eq!(parse("123.12"), Expr::Literal(Literal::Number(123.12))); 
+        assert_eq!(parse("\"Test\""), Expr::Literal(Literal::Text("Test".to_string()))); 
+        assert_eq!(parse("TRUE"), Expr::Literal(Literal::Boolean(true))); 
     }
 
     #[test]

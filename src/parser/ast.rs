@@ -2,7 +2,6 @@ use std::fmt;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
-    Ident(Ident),
     Literal(Literal),
     Prefix(Prefix, Box<Expr>),
     Infix(Infix, Box<Expr>, Box<Expr>),
@@ -17,9 +16,6 @@ pub enum Expr {
 	Array(Vec<Box<Expr>>),
     Error(Error)
 }
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct Ident(String); 
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Error {
