@@ -18,6 +18,13 @@ pub enum Token {
     Num, 
     NA, 
     GettingData, 
+    // References
+    MultiSheet(String), 
+    Sheet(String), 
+    Range(String), 
+    Cell(String), 
+    VRange(String), 
+    HRange(String), 
     // Symbols
     Plus,
     Minus,
@@ -53,6 +60,12 @@ impl fmt::Display for Token {
                 }
             }, 
             Token::Text(s) => write!(f, "{}", s), 
+            Token::MultiSheet(s) => write!(f, "{}", s), 
+            Token::Sheet(s) => write!(f, "{}", s), 
+            Token::Range(s) => write!(f, "{}", s), 
+            Token::Cell(s) => write!(f, "{}", s), 
+            Token::VRange(s) => write!(f, "{}", s), 
+            Token::HRange(s) => write!(f, "{}", s), 
             Token::Null => write!(f, "{}", "#NULL!"), 
             Token::Div => write!(f, "{}", "#DIV/0!"), 
             Token::Value => write!(f, "{}", "#VALUE!"),

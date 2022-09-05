@@ -1,9 +1,9 @@
 use nom::branch::*;
-use nom::bytes::complete::{tag, take};
-use nom::character::complete::{digit1, multispace0};
-use nom::combinator::{map, map_res,};
+use nom::bytes::complete::{tag, take, take_while, take_while1};
+use nom::character::complete::{alpha1, alphanumeric1, digit1, multispace0};
+use nom::combinator::{map, map_res, consumed, recognize};
 use nom::multi::many0;
-use nom::sequence::delimited;
+use nom::sequence::{terminated, delimited, separated_pair, pair};
 use nom::*;
 
 use std::str;
@@ -75,7 +75,6 @@ pub fn lex_syntax(input: &[u8]) -> IResult<&[u8], Token> {
         alt((
             ampersand, 
             equal, 
-            exclamation, 
             comma, 
             colon, 
             period, 
@@ -112,7 +111,7 @@ fn pis(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
 }
 
 fn concat_slice_vec(c: &[u8], done: Vec<u8>) -> Vec<u8> {
-    let mut new_vec = c.to_vec();
+	let mut new_vec = c.to_vec();
     new_vec.extend(&done);
     new_vec
 }
@@ -132,6 +131,37 @@ fn string(input: &[u8]) -> IResult<&[u8], String> {
 
 fn lex_string(input: &[u8]) -> IResult<&[u8], Token> {
     map(string, Token::Text)(input)
+}
+
+// References 
+fn lex_vrange(input: &[u8]) -> IResult<&[u8], Token> {
+    let vrange_token = recognize(separated_pair(
+        alpha1, 
+        tag(":"), 
+        alpha1
+    ));
+    map_res(
+        vrange_token,
+        |s| {
+            let c = complete_byte_slice_str_from_utf8(s); 
+            c.map(|syntax| Token::VRange(syntax.to_string()))
+        }
+    )(input)
+}
+
+fn lex_hrange(input: &[u8]) -> IResult<&[u8], Token> {
+    let vrange_token = recognize(separated_pair(
+        digit1, 
+        tag(":"), 
+        digit1
+    ));
+    map_res(
+        vrange_token,
+        |s| {
+            let c = complete_byte_slice_str_from_utf8(s); 
+            c.map(|syntax| Token::HRange(syntax.to_string()))
+        }
+    )(input)
 }
 
 // Integer
@@ -154,6 +184,8 @@ fn lex_token(input: &[u8]) -> IResult<&[u8], Token> {
     alt((
         lex_syntax,
         lex_string,
+        lex_vrange, 
+        lex_hrange, 
         lex_integer,
     ))(input)
 }
@@ -176,7 +208,8 @@ mod tests {
 	use super::*; 
 
 	fn lex(b: &[u8]) -> Vec<Token> {
-        let (_, result) = Lexer::lex_tokens(b).unwrap(); 
+        let (res, result) = Lexer::lex_tokens(b).unwrap(); 
+        println!("{:?}, {:?}", res, result); 
         result
     }
 
@@ -218,7 +251,6 @@ mod tests {
             Token::Period, 
             Token::Integer(30)
         ]); 
-
     }
 
     #[test]
@@ -237,4 +269,20 @@ mod tests {
         assert_eq!(lex(b"TRUE"), vec![Token::Boolean(true)]); 
         assert_eq!(lex(b"FALSE"), vec![Token::Boolean(false)]); 
     }
+
+    // #[test]
+    // fn test_sheet_name() {
+        // assert_eq!(lex(b"'Test'!"), vec![Token::SheetName(String::from("Test"))]); 
+    // }
+    
+    #[test]
+    fn test_vrange() {
+        assert_eq!(lex(b"A:A"), vec![Token::VRange(String::from("A:A"))]); 
+    }
+
+    #[test]
+    fn test_hrange() {
+        assert_eq!(lex(b"1:1"), vec![Token::HRange(String::from("1:1"))]); 
+    }
+
 }
