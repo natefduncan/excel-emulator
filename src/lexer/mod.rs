@@ -168,15 +168,21 @@ fn in_sheet_name(chr: u8) -> bool {
     let is_digit: bool = chr >= 0x30 && chr <= 0x39; 
     let is_alpha: bool = (chr >= 0x41 && chr <= 0x5A) || (chr >= 0x61 && chr <= 0x7A); 
 
-    let is_special = b"`~!@#$%^&()-_=+{}|;:,<.>".contains(&chr); 
+    let is_special = b"`~@#$%^&()-_=+{}|;,<.>".contains(&chr); 
     is_digit || is_alpha || is_special
+}
+
+fn lex_sheet_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    alt((
+        take_while1(in_sheet_name),
+        recognize(delimited(tag("'"), take_while(in_sheet_name), tag("'")))
+    ))(input)
 }
 
 fn lex_sheet(input: &[u8]) -> IResult<&[u8], Token> {
     map_res(
         alt((
-            terminated(take_while1(in_sheet_name), tag("!")), 
-            terminated(recognize(delimited(tag("'"), take_while(in_sheet_name), tag("'"))), tag("!")), 
+            terminated(lex_sheet_name, tag("!")), 
         )), 
         |s| {
             let c = complete_byte_slice_str_from_utf8(s);
@@ -185,8 +191,19 @@ fn lex_sheet(input: &[u8]) -> IResult<&[u8], Token> {
     )(input)
 }
 
+fn lex_multisheet(input: &[u8]) -> IResult<&[u8], Token> {
+    map(
+        terminated(recognize(separated_pair(lex_sheet_name, tag(":"), lex_sheet_name)), tag("!")), 
+        |a| {
+            let x = complete_byte_slice_str_from_utf8(a).unwrap();
+            Token::MultiSheet(x.to_string())
+        }
+    )(input)
+}
+
 fn lex_references(input: &[u8]) -> IResult<&[u8], Token> {
     alt((
+        lex_multisheet,
         lex_sheet, 
         lex_hrange, 
         lex_vrange
@@ -299,9 +316,15 @@ mod tests {
     }
 
     #[test]
-    fn test_sheet_name() {
+    fn test_sheet() {
         assert_eq!(lex(b"'Test'!"), vec![Token::Sheet(String::from("'Test'"))]); 
     }
+
+    #[test]
+    fn test_multisheet() {
+        assert_eq!(lex(b"test:test!"), vec![Token::MultiSheet(String::from("test:test"))]); 
+    }
+ 
     
     #[test]
     fn test_vrange() {
