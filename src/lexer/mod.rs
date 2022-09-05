@@ -201,12 +201,33 @@ fn lex_multisheet(input: &[u8]) -> IResult<&[u8], Token> {
     )(input)
 }
 
+fn lex_cell(input: &[u8]) -> IResult<&[u8], Token> {
+    map(
+        recognize(pair(alpha1, digit1)), 
+        |c| {
+            let s = complete_byte_slice_str_from_utf8(c).unwrap(); 
+            Token::Cell(s.to_string())
+        }
+    )(input)
+}
+
+fn lex_range(input: &[u8]) -> IResult<&[u8], Token> {
+    map(
+        separated_pair(lex_cell, tag(":"), lex_cell), 
+        |(a, b)| {
+            Token::Range(format!("{}:{}", a, b))
+        }
+    )(input)
+}
+
 fn lex_references(input: &[u8]) -> IResult<&[u8], Token> {
     alt((
         lex_multisheet,
         lex_sheet, 
         lex_hrange, 
-        lex_vrange
+        lex_vrange, 
+        lex_range, 
+        lex_cell
     ))(input)
 }
 
@@ -316,16 +337,15 @@ mod tests {
     }
 
     #[test]
+    fn test_multisheet() {
+        assert_eq!(lex(b"test:test!"), vec![Token::MultiSheet(String::from("test:test"))]); 
+    }
+
+    #[test]
     fn test_sheet() {
         assert_eq!(lex(b"'Test'!"), vec![Token::Sheet(String::from("'Test'"))]); 
     }
 
-    #[test]
-    fn test_multisheet() {
-        assert_eq!(lex(b"test:test!"), vec![Token::MultiSheet(String::from("test:test"))]); 
-    }
- 
-    
     #[test]
     fn test_vrange() {
         assert_eq!(lex(b"A:A"), vec![Token::VRange(String::from("A:A"))]); 
@@ -335,5 +355,16 @@ mod tests {
     fn test_hrange() {
         assert_eq!(lex(b"1:1"), vec![Token::HRange(String::from("1:1"))]); 
     }
+
+    #[test]
+    fn test_range() {
+        assert_eq!(lex(b"A1:A1"), vec![Token::Range(String::from("A1:A1"))]); 
+    }
+
+    #[test]
+    fn test_cell() {
+        assert_eq!(lex(b"A1"), vec![Token::Cell(String::from("A1"))]); 
+    }
+
 
 }
