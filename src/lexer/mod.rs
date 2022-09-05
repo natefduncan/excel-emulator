@@ -164,6 +164,35 @@ fn lex_hrange(input: &[u8]) -> IResult<&[u8], Token> {
     )(input)
 }
 
+fn in_sheet_name(chr: u8) -> bool {
+    let is_digit: bool = chr >= 0x30 && chr <= 0x39; 
+    let is_alpha: bool = (chr >= 0x41 && chr <= 0x5A) || (chr >= 0x61 && chr <= 0x7A); 
+
+    let is_special = b"`~!@#$%^&()-_=+{}|;:,<.>".contains(&chr); 
+    is_digit || is_alpha || is_special
+}
+
+fn lex_sheet(input: &[u8]) -> IResult<&[u8], Token> {
+    map_res(
+        alt((
+            terminated(take_while1(in_sheet_name), tag("!")), 
+            terminated(recognize(delimited(tag("'"), take_while(in_sheet_name), tag("'"))), tag("!")), 
+        )), 
+        |s| {
+            let c = complete_byte_slice_str_from_utf8(s);
+            c.map(|syntax| Token::Sheet(syntax.to_string()))
+        }
+    )(input)
+}
+
+fn lex_references(input: &[u8]) -> IResult<&[u8], Token> {
+    alt((
+        lex_sheet, 
+        lex_hrange, 
+        lex_vrange
+    ))(input)
+}
+
 // Integer
 fn complete_str_from_str<F: FromStr>(c: &str) -> Result<F, F::Err> {
     FromStr::from_str(c)
@@ -184,8 +213,7 @@ fn lex_token(input: &[u8]) -> IResult<&[u8], Token> {
     alt((
         lex_syntax,
         lex_string,
-        lex_vrange, 
-        lex_hrange, 
+        lex_references,
         lex_integer,
     ))(input)
 }
@@ -270,10 +298,10 @@ mod tests {
         assert_eq!(lex(b"FALSE"), vec![Token::Boolean(false)]); 
     }
 
-    // #[test]
-    // fn test_sheet_name() {
-        // assert_eq!(lex(b"'Test'!"), vec![Token::SheetName(String::from("Test"))]); 
-    // }
+    #[test]
+    fn test_sheet_name() {
+        assert_eq!(lex(b"'Test'!"), vec![Token::Sheet(String::from("'Test'"))]); 
+    }
     
     #[test]
     fn test_vrange() {
