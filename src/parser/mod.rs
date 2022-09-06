@@ -193,11 +193,34 @@ fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
        }
     )(input)
 }
+
+fn parse_block(input: Tokens) -> IResult<Tokens, Expr> {
+    delimited(lparen_tag, parse_expr, rparen_tag)(input)
+}
+
+fn parse_prefix(input: Tokens) -> IResult<Tokens, Expr> {
+    map(
+        pair(
+            alt((plus_tag, minus_tag)), 
+            alt((parse_block, parse_expr))
+        ),
+        |(pre, expr)| {
+            let prefix = match &pre.tok[0] {
+                Token::Plus => Prefix::Plus, 
+                Token::Minus => Prefix::Minus, 
+                _ => unreachable!()
+            }; 
+            let box_expr = Box::new(expr); 
+            Expr::Prefix(prefix, box_expr)
+        }
+    )(input)
+}
     
 fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
         parse_func_expr, 
         parse_array_expr, 
+        parse_prefix, 
         parse_reference, 
         parse_error_expr, 
         parse_literal_expr, 
@@ -207,7 +230,7 @@ fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
 #[cfg(test)]
 mod tests {
     use crate::parser::parse_expr; 
-    use crate::parser::ast::{Expr, Literal, Error}; 
+    use crate::parser::ast::{Expr, Literal, Error, Prefix, Infix}; 
     use crate::lexer::Lexer; 
     use crate::lexer::token::{Token, Tokens}; 
 
@@ -254,6 +277,11 @@ mod tests {
     #[test]
     fn test_array() {
         assert_eq!(parse("{1, 2, 3, 4}"), Expr::Array(vec![Expr::from(1.0), Expr::from(2.0), Expr::from(3.0), Expr::from(4.0)])); 
+    }
+
+    #[test]
+    fn test_prefix() {
+        assert_eq!(parse("+1"), Expr::Prefix(Prefix::Plus, Box::new(Expr::from(1.0)))); 
     }
 }
 
