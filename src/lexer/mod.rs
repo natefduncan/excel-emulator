@@ -1,7 +1,7 @@
 use nom::branch::*;
 use nom::bytes::complete::{tag, take, take_while, take_while1};
 use nom::character::complete::{alpha1, alphanumeric1, digit1, multispace0};
-use nom::combinator::{map, map_res, consumed, recognize};
+use nom::combinator::{map, map_res, recognize};
 use nom::multi::many0;
 use nom::sequence::{terminated, delimited, separated_pair, pair};
 use nom::*;
@@ -37,7 +37,6 @@ syntax! {multiply, "*", Token::Multiply}
 syntax! {exponent, "^", Token::Exponent}
 syntax! {ampersand, "&", Token::Ampersand}
 syntax! {equal, "=", Token::Equal}
-syntax! {exclamation, "!", Token::Exclamation}
 syntax! {comma, ",", Token::Comma}
 syntax! {period, ".", Token::Period}
 syntax! {colon, ":", Token::Colon}

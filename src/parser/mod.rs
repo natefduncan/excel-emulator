@@ -1,7 +1,6 @@
 use nom::branch::*;
-use nom::bytes::complete::{tag, take, take_while};
-use nom::character::complete::{digit1, multispace0};
-use nom::combinator::{map, map_res, verify, opt};
+use nom::bytes::complete::{take, take_while};
+use nom::combinator::{map, verify, opt};
 use nom::multi::many0;
 use nom::sequence::{preceded, delimited, pair, tuple};
 use nom::*;
@@ -13,6 +12,7 @@ pub mod ast;
 use crate::lexer::token::{Token, Tokens}; 
 use crate::parser::ast::*; 
 
+
 macro_rules! tag_token (
 	($func_name:ident, $tag: expr) => (
 		fn $func_name(tokens: Tokens) -> IResult<Tokens, Tokens> {
@@ -21,6 +21,7 @@ macro_rules! tag_token (
 	)
 );
 
+tag_token!(comma_tag, Token::Comma); 
 tag_token!(plus_tag, Token::Plus); 
 tag_token!(minus_tag, Token::Minus); 
 tag_token!(divide_tag, Token::Divide); 
@@ -28,10 +29,6 @@ tag_token!(multiply_tag, Token::Multiply);
 tag_token!(exponent_tag, Token::Exponent); 
 tag_token!(ampersand_tag, Token::Ampersand); 
 tag_token!(equal_tag, Token::Equal); 
-tag_token!(not_equal_tag, Token::Equal); 
-tag_token!(comma_tag, Token::Comma); 
-tag_token!(period_tag, Token::Period); 
-tag_token!(colon_tag, Token::Colon); 
 tag_token!(semicolon_tag, Token::SemiColon); 
 tag_token!(langle_tag, Token::LAngle); 
 tag_token!(rangle_tag, Token::RAngle); 
@@ -39,17 +36,15 @@ tag_token!(lparen_tag, Token::LParen);
 tag_token!(rparen_tag, Token::RParen); 
 tag_token!(lbrace_tag, Token::LBrace); 
 tag_token!(rbrace_tag, Token::RBrace); 
-tag_token!(lbracket_tag, Token::LBracket); 
-tag_token!(rbracket_tag, Token::RBracket); 
 
-pub fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
+fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
     let (i1, t1) = take(1usize)(input)?;
 	if t1.tok.is_empty() {
         Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
     } else {
         match t1.tok[0].clone() {
-            Token::Integer(i) => {
-                let (i2, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
+            Token::Integer(_) => {
+                let (_, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
 				let mut res = String::new(); 
                 for t in t2.tok.into_iter() {
 					res = format!("{}{}", res, t);
@@ -67,7 +62,7 @@ fn parse_literal_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_literal, Expr::Literal)(input)
 }
 
-pub fn parse_error(input: Tokens) -> IResult<Tokens, Error> {
+fn parse_error(input: Tokens) -> IResult<Tokens, Error> {
     let (i1, t1) = take(1usize)(input)?;
 	if t1.tok.is_empty() {
         Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
@@ -90,23 +85,23 @@ fn parse_error_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_error, Expr::Error)(input)
 }
 
-fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Box<Expr>> {
+fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
     map(
-        preceded(alt((comma_tag, semicolon_tag)), parse_expr), 
+        preceded(alt((comma_tag, semicolon_tag)), parse), 
         |expr| {
-            Box::new(expr)
+            expr
         }
     )(input)
 }
 
-fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Box<Expr>>> {
+fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
     map(
-        pair(parse_expr, many0(parse_comma_exprs)),
-        |(first, second)| [&vec![Box::new(first)][..], &second[..]].concat(),
+        pair(parse, many0(parse_comma_exprs)),
+        |(first, second)| [&vec![first][..], &second[..]].concat(),
     )(input)
 }
 
-fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Box<Expr>>> {
+fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
     Ok((input, vec![]))
 }
 
@@ -186,12 +181,7 @@ fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
             opt(parse_sheet_or_multisheet), parse_cell_or_range
         ), 
         |(sheet, range)| {
-            let sheet : Option<String> = match sheet {
-                Some(x) => {
-                    Some(format!("{}", x))
-                }, 
-                _ => None
-            }; 
+            let sheet : Option<String> = sheet.map(|x| format!("{}", x));
             Expr::Reference {
                 sheet, reference: format!("{}", range)
             }
@@ -221,7 +211,7 @@ fn parse_prefix(input: Tokens) -> IResult<Tokens, Expr> {
     )(input)
 }
 
-pub fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
+fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
     alt((
         map(plus_tag, |_| Infix::Plus), 
         map(minus_tag, |_| Infix::Minus), 
@@ -234,6 +224,7 @@ pub fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
         map(rangle_tag, |_| Infix::GreaterThan), 
         map(langle_tag, |_| Infix::LessThan), 
         map(exponent_tag, |_| Infix::Exponent), 
+        map(ampersand_tag, |_| Infix::Ampersand), 
     ))(input)
 }
 
@@ -260,7 +251,7 @@ fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     ))(input)
 }
 
-fn parse(input: Tokens) -> IResult<Tokens, Expr> {
+pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
         parse_infix, 
         parse_prefix,
@@ -272,16 +263,16 @@ fn parse(input: Tokens) -> IResult<Tokens, Expr> {
 #[cfg(test)]
 mod tests {
     use crate::parser::parse; 
-    use crate::parser::ast::{Expr, Literal, Error, Prefix, Infix}; 
+    use crate::parser::ast::{Expr, Error, Prefix, Infix}; 
     use crate::lexer::Lexer; 
-    use crate::lexer::token::{Token, Tokens}; 
+    use crate::lexer::token::Tokens; 
 
     fn parse_str(s: &str) -> Expr {
         let (remain, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
         println!("remain: {:?}", remain); 
         println!("tokens: {:?}", t); 
         let tokens = Tokens::new(&t); 
-        let (tokens, expr) = parse(tokens).unwrap(); 
+        let (_, expr) = parse(tokens).unwrap(); 
         expr
     }
 
@@ -307,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_function() {
-        assert_eq!(parse_str("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Box::new(Expr::from("a")), Box::new(Expr::from("b"))]}); 
+        assert_eq!(parse_str("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::from("a"), Expr::from("b")]}); 
     }
 
     #[test]
@@ -318,7 +309,17 @@ mod tests {
 
     #[test]
     fn test_array() {
-        assert_eq!(parse_str("{1, 2, 3, 4}"), Expr::Array(vec![Box::new(Expr::from(1.0)), Box::new(Expr::from(2.0)), Box::new(Expr::from(3.0)), Box::new(Expr::from(4.0))])); 
+        assert_eq!(parse_str("{1, 2, 3, 4}"), Expr::Array(vec![Expr::from(1.0), Expr::from(2.0), Expr::from(3.0), Expr::from(4.0)])); 
+        assert_eq!(parse_str("{(1+2), 2, 3, 4}"), Expr::Array(vec![
+                Expr::Infix(
+                    Infix::Plus, 
+                    Box::new(Expr::from(1.0)), 
+                    Box::new(Expr::from(2.0))
+                ), 
+                Expr::from(2.0), 
+                Expr::from(3.0), 
+                Expr::from(4.0)
+        ])); 
     }
 
     #[test]
