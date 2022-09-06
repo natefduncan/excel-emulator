@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
-use ndarray::Array2; 
+use ndarray::{ArrayView2, Array2, s}; 
 
 use crate::parser::ast::{Expr, Infix, Prefix, Literal}; 
 use crate::function::*; 
@@ -27,83 +27,12 @@ pub enum Value {
     Empty
 }
 
-pub fn evaluate_expr(expr: Expr, book: &Book, resolve_references: bool) -> Value {
-    match expr {
-        Expr::Reference{ sheet, reference } => {
-            if resolve_references {
-                let cells: Vec<(usize, usize)> = Reference::from(reference).get_cells(); 
-                let sheet: &Array2<Value> = match sheet {
-                    Some(s) => book.get_sheet_by_name(&s), 
-                    None => book.get_sheet_by_idx(book.current_sheet)
-                }; 
-                if cells.len() == 1 {
-                    sheet[[cells[0].0-1, cells[0].1-1]].clone()
-                } else {
-                    Value::from(cells.iter().map(|(r, c)| sheet[[r-1, c-1]].clone()).collect::<Vec<Value>>()) 
-                }
-            } else {
-                Value::from(Value::Ref { sheet, reference: Reference::from(reference) })
-            }
-        }, 
-        c => Value::from(c)
-    }
-}
-
 impl From<f64> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
 impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
 impl From<Vec<Value>> for Value { fn from(v: ArrayType) -> Value { Value::Array(v) }}
 impl From<NaiveDate> for Value { fn from(d: DateType) -> Value { Value::Date(d) }}
-impl From<Expr> for Value {
-    fn from(expr: Expr) -> Value {
-        match expr {
-            Expr::Literal(lit) => {
-                match lit {
-                    Literal::Number(f) => Value::from(f), 
-                    Literal::Boolean(b) => Value::from(b), 
-                    Literal::Text(s) => Value::from(s)
-                }
-            },
-            Expr::Prefix(p, box_expr) => { 
-                match p {
-                    Prefix::Plus => Value::from(Value::from(*box_expr).as_num().abs()),
-                    Prefix::Minus => Value::from(*box_expr) * Value::from(-1.0)
-                }
-            }, 
-            Expr::Infix(i, a, b) => {
-                match i {
-                    Infix::Plus => Value::from(*a) + Value::from(*b), 
-                    Infix::Minus => Value::from(*a) - Value::from(*b), 
-                    Infix::Multiply => Value::from(*a) * Value::from(*b), 
-                    Infix::Divide => Value::from(*a) / Value::from(*b), 
-                    Infix::Exponent => Exponent {a: Value::from(*a), b: Value::from(*b)}.evaluate(), 
-                    Infix::Equal => Value::from(Value::from(a) == Value::from(b)), 
-                    Infix::NotEqual => Value::from(Value::from(a) != Value::from(b)), 
-                    Infix::LessThan => Value::from(Value::from(a) < Value::from(b)), 
-                    Infix::LessThanEqual => Value::from(Value::from(a) <= Value::from(b)), 
-                    Infix::GreaterThan => Value::from(Value::from(a) > Value::from(b)), 
-                    Infix::GreaterThanEqual => Value::from(Value::from(a) >= Value::from(b)), 
-                    _ => panic!("Infix {:?} does not convert to a value.", i) 
-                }
-            }, 
-            Expr::Func {name, args} => evaluate_function(name.as_str(), args),
-            Expr::Array(x) => Value::from(x.to_vec()), 
-            _ => panic!("Expression {:?} does not convert to a value.", expr)  
-        }
-    }
-}
-
-impl From<Vec<Expr>> for Value {
-    fn from(v: Vec<Expr>) -> Value {
-       Value::from(v.iter().cloned().map(|x| Value::from(x)).collect::<Vec<Value>>())
-    }
-}
-impl From<Box<Expr>> for Value {
-    fn from(bexpr: Box<Expr>) -> Value {
-        Value::from(*bexpr)
-    }
-}
 
 impl Value {
     pub fn is_num(&self) -> bool { matches!(self, Value::Num(_)) }
@@ -114,6 +43,19 @@ impl Value {
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
     pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
     pub fn is_ref(&self) -> bool { matches!(self, Value::Ref {sheet: _, reference: _}) }
+
+    pub fn resolve_ref<'a>(&'a self, book: &'a Book) -> ArrayView2<Value> {
+        if let Value::Ref {sheet, reference} = self {
+            let (row, col, num_rows, num_cols) = reference.get_dimensions(); 
+            let sheet: &Array2<Value> = match sheet {
+                Some(s) => book.get_sheet_by_name(&s), 
+                None => book.get_sheet_by_idx(book.current_sheet)
+            }; 
+            sheet.slice(s![row..(row+num_rows), col..(col+num_cols)])
+        } else {
+            panic!("Can only resolve references."); 
+        }
+    }
 
     pub fn as_num(&self) -> NumType {
         match self {

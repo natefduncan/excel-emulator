@@ -25,7 +25,7 @@ use crate::{
 pub type ZipType = ZipArchive<File>; 
 
 pub struct Book {
-    zip: ZipType, 
+    zip: Option<ZipType>, 
     pub sheets: Vec<Sheet>, 
     shared_strings: Vec<SharedString>, 
     styles: Vec<Style>, 
@@ -37,7 +37,7 @@ pub struct Book {
 impl From<String> for Book {
     fn from(s: String) -> Self {
         let zip = Self::zip_from_path(&s); 
-        Book { zip, sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, cells: HashMap::new(), dependencies: DependencyTree::new() }
+        Book { zip: Some(zip), sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, cells: HashMap::new(), dependencies: DependencyTree::new() }
     }
 }
 
@@ -48,6 +48,10 @@ impl From<&str> for Book {
 }
 
 impl Book {
+    pub fn new() -> Book {
+        Book { zip: None, sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, cells: HashMap::new(), dependencies: DependencyTree::new() }
+    }
+
     pub fn load(&mut self) -> Result<()> {
         self.load_sheet_names()?; 
         self.load_shared_strings()?; 
@@ -58,7 +62,7 @@ impl Book {
 
     pub fn load_shared_strings(&mut self) -> Result<()> {
         let mut buf = Vec::new(); 
-        if let Ok(f) = self.zip.by_name("xl/sharedStrings.xml") {
+        if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/sharedStrings.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             let mut is_shared_string: bool = false; 
             loop {
@@ -87,7 +91,7 @@ impl Book {
 
     pub fn load_styles(&mut self) -> Result<()> {
         let mut buf = Vec::new();
-        if let Ok(f) = self.zip.by_name("xl/styles.xml") {
+        if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/styles.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             let mut is_cell_xfs: bool = false;
             loop {
@@ -120,7 +124,7 @@ impl Book {
 
     pub fn load_sheet_names(&mut self) -> Result<()> {
         let mut buf = Vec::new();
-        if let Ok(f) = self.zip.by_name("xl/workbook.xml") {
+        if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/workbook.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             loop {
                 match reader.read_event(&mut buf) {
@@ -150,7 +154,7 @@ impl Book {
     }
     pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<()> {
         let mut buf = Vec::new();
-        if let Ok(f) = self.zip.by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
+        if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             let mut flags = SheetFlags::new(); 
             loop {

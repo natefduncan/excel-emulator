@@ -9,7 +9,7 @@ fn make_ascii_titlecase(s: &mut str) {
 }
 
 #[proc_macro_attribute]
-pub fn excel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let ast: ItemFn = syn::parse(item).unwrap();
     create_excel_function(ast)
 }
@@ -28,7 +28,7 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
         quote! {
             pub #fnarg 
         }
-    }); 
+    });  
 
     let field_declarations = fn_args.clone().into_iter().map(|fnarg| {
         if let FnArg::Typed(pat_type) = fnarg {
@@ -36,7 +36,7 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
             if let syn::Pat::Ident(pat_ident) = arg_name {
                 if pat_ident.ident.to_string() == "args" {
                     quote! {
-                        let args = v.into_iter().map(|x| Value::from(x)).collect::<Vec<Value>>(); 
+                        let args = v; 
                     }
                 } else {
                     quote! {
@@ -48,8 +48,8 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
             }
        } else {
             quote! {}
-        }
-   }); 
+       }
+    }); 
 
     let self_arg_declarations = fn_args.clone().into_iter().map(|fnarg| {
         if let FnArg::Typed(pat_type) = fnarg {
@@ -88,8 +88,8 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
             }
         }
 
-        impl From<Vec<Expr>> for #struct_name_ident { 
-            fn from(mut v: Vec<Expr>) -> #struct_name_ident {
+        impl From<Vec<Value>> for #struct_name_ident { 
+            fn from(mut v: Vec<Value>) -> #struct_name_ident {
                 #(#field_declarations)*; 
                 #struct_name_ident {#(#arg_declarations),*}
             }

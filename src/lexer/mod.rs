@@ -166,7 +166,6 @@ fn lex_hrange(input: &[u8]) -> IResult<&[u8], Token> {
 fn in_sheet_name(chr: u8) -> bool {
     let is_digit: bool = (0x30..=0x39).contains(&chr); 
     let is_alpha: bool = (0x41..=0x5A).contains(&chr) || (0x61..=0x7A).contains(&chr); 
-
     let is_special = b"`~@#$%^&()-_=+{}|;,<.>".contains(&chr); 
     is_digit || is_alpha || is_special
 }
