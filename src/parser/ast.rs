@@ -10,7 +10,7 @@ pub enum Expr {
         args: Vec<Expr>
     },
     Reference {
-        sheet: String, 
+        sheet: Option<String>, 
         reference: String 
     }, 
 	Array(Vec<Expr>),

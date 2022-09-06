@@ -1,7 +1,7 @@
 use nom::branch::*;
 use nom::bytes::complete::{tag, take, take_while};
 use nom::character::complete::{digit1, multispace0};
-use nom::combinator::{map, map_res, verify};
+use nom::combinator::{map, map_res, verify, opt};
 use nom::multi::many0;
 use nom::sequence::{preceded, delimited, pair};
 use nom::*;
@@ -134,9 +134,57 @@ fn parse_func_expr(input: Tokens) -> IResult<Tokens, Expr> {
    )(input)
 }
 
+fn parse_sheet_or_multisheet(input: Tokens) -> IResult<Tokens, Token> {
+    let (i1, t1) = take(1usize)(input)?;
+    if t1.tok.is_empty() {
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else {
+        match &t1.tok[0] {
+            Token::MultiSheet(s) => Ok((i1, Token::MultiSheet(s.to_string()))), 
+            Token::Sheet(s) => Ok((i1, Token::Sheet(s.to_string()))), 
+            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+        }
+    }
+}
+
+fn parse_cell_or_range(input: Tokens) -> IResult<Tokens, Token> {
+    let (i1, t1) = take(1usize)(input)?;
+    if t1.tok.is_empty() {
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else {
+        match &t1.tok[0] {
+            Token::Range(s) => Ok((i1, Token::Range(s.to_string()))), 
+            Token::Cell(s) => Ok((i1, Token::Cell(s.to_string()))), 
+            Token::VRange(s) => Ok((i1, Token::VRange(s.to_string()))), 
+            Token::HRange(s) => Ok((i1, Token::HRange(s.to_string()))), 
+            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+        }
+    }
+}
+
+fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
+    map(
+        pair(
+            opt(parse_sheet_or_multisheet), parse_cell_or_range
+        ), 
+        |(sheet, range)| {
+            let sheet : Option<String> = match sheet {
+                Some(x) => {
+                    Some(format!("{}", x))
+                }, 
+                _ => None
+            }; 
+            Expr::Reference {
+                sheet, reference: format!("{}", range)
+            }
+       }
+    )(input)
+}
+    
 fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
         parse_func_expr, 
+        parse_reference, 
         parse_error_expr, 
         parse_literal_expr, 
     ))(input)
@@ -181,6 +229,12 @@ mod tests {
     #[test]
     fn test_function() {
         assert_eq!(parse("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::Literal(Literal::Text("a".to_string())), Expr::Literal(Literal::Text("b".to_string()))]}); 
+    }
+
+    #[test]
+    fn test_reference() {
+        assert_eq!(parse("test!A1"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1".to_string()}); 
+        assert_eq!(parse("test!A1:B2"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1:B2".to_string()}); 
     }
 }
 
