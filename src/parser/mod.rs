@@ -3,7 +3,7 @@ use nom::bytes::complete::{tag, take, take_while};
 use nom::character::complete::{digit1, multispace0};
 use nom::combinator::{map, map_res, verify};
 use nom::multi::many0;
-use nom::sequence::delimited;
+use nom::sequence::{preceded, delimited, pair};
 use nom::*;
 use nom::Err; 
 use nom::error::{Error as NomError, ErrorKind}; 
@@ -20,46 +20,6 @@ macro_rules! tag_token (
 		}
 	)
 );
-
-pub fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
-    let (i1, t1) = take(1usize)(input)?;
-	if t1.tok.is_empty() {
-        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
-    } else {
-        match t1.tok[0].clone() {
-            Token::Integer(i) => {
-                let (i2, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
-				let mut res = String::new(); 
-                for t in t2.tok.into_iter() {
-					res = format!("{}{}", res, t);
-                }
-                Ok((i1, Literal::Number(res.parse::<f64>().unwrap())))
-            },
-            Token::Text(s) => Ok((i1, Literal::Text(s))),
-            Token::Boolean(b) => Ok((i1, Literal::Boolean(b))),
-            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag))),
-        }
-    }
-}
-
-pub fn parse_error(input: Tokens) -> IResult<Tokens, Error> {
-    let (i1, t1) = take(1usize)(input)?;
-	if t1.tok.is_empty() {
-        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
-    } else {
-        match t1.tok[0].clone() {
-            Token::Null => Ok((i1, Error::Null)), 
-            Token::Div => Ok((i1, Error::Div)), 
-            Token::Value => Ok((i1, Error::Value)), 
-            Token::Ref => Ok((i1, Error::Ref)), 
-            Token::Name => Ok((i1, Error::Name)), 
-            Token::Num => Ok((i1, Error::Num)), 
-            Token::NA => Ok((i1, Error::NA)), 
-            Token::GettingData => Ok((i1, Error::GettingData)), 
-            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
-        }
-    }
-}
 
 tag_token!(plus_tag, Token::Plus); 
 tag_token!(minus_tag, Token::Minus); 
@@ -82,16 +42,101 @@ tag_token!(rbrace_tag, Token::RBrace);
 tag_token!(lbracket_tag, Token::LBracket); 
 tag_token!(rbracket_tag, Token::RBracket); 
 
+pub fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
+    let (i1, t1) = take(1usize)(input)?;
+	if t1.tok.is_empty() {
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else {
+        match t1.tok[0].clone() {
+            Token::Integer(i) => {
+                let (i2, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
+				let mut res = String::new(); 
+                for t in t2.tok.into_iter() {
+					res = format!("{}{}", res, t);
+                }
+                Ok((i1, Literal::Number(res.parse::<f64>().unwrap())))
+            },
+            Token::Text(s) => Ok((i1, Literal::Text(s))),
+            Token::Boolean(b) => Ok((i1, Literal::Boolean(b))),
+            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag))),
+        }
+    }
+}
+
 fn parse_literal_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_literal, Expr::Literal)(input)
+}
+
+pub fn parse_error(input: Tokens) -> IResult<Tokens, Error> {
+    let (i1, t1) = take(1usize)(input)?;
+	if t1.tok.is_empty() {
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else {
+        match t1.tok[0].clone() {
+            Token::Null => Ok((i1, Error::Null)), 
+            Token::Div => Ok((i1, Error::Div)), 
+            Token::Value => Ok((i1, Error::Value)), 
+            Token::Ref => Ok((i1, Error::Ref)), 
+            Token::Name => Ok((i1, Error::Name)), 
+            Token::Num => Ok((i1, Error::Num)), 
+            Token::NA => Ok((i1, Error::NA)), 
+            Token::GettingData => Ok((i1, Error::GettingData)), 
+            _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+        }
+    }
 }
 
 fn parse_error_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_error, Expr::Error)(input)
 }
 
+fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
+    preceded(comma_tag, parse_expr)(input)
+}
+
+fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
+    map(
+        pair(parse_expr, many0(parse_comma_exprs)),
+        |(first, second)| [&vec![first][..], &second[..]].concat(),
+    )(input)
+}
+
+fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
+    Ok((input, vec![]))
+}
+
+fn parse_ident(input: Tokens) -> IResult<Tokens, Token> {
+    let (i1, t1) = take(1usize)(input)?;
+    if t1.tok.is_empty() {
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else {
+        if matches!(t1.tok[0], Token::Ident(_)) {
+            Ok((i1, t1.tok[0].clone()))
+        } else {
+            Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+        }
+    }
+}
+
+fn parse_func_expr(input: Tokens) -> IResult<Tokens, Expr> {
+   map(
+       pair(
+           parse_ident, 
+           delimited(
+               lparen_tag,
+               alt((parse_exprs, empty_boxed_vec)),
+               rparen_tag,
+           )
+        ),
+        |(ident, exprs)| {
+            Expr::Func { name: format!("{}", ident), args: exprs }
+        }
+   )(input)
+}
+
 fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
+        parse_func_expr, 
         parse_error_expr, 
         parse_literal_expr, 
     ))(input)
@@ -105,8 +150,9 @@ mod tests {
     use crate::lexer::token::{Token, Tokens}; 
 
     fn parse(s: &str) -> Expr {
-        let (_, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
-        println!("{:?}", t); 
+        let (remain, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
+        println!("remain: {:?}", remain); 
+        println!("tokens: {:?}", t); 
         let tokens = Tokens::new(&t); 
         let (tokens, expr) = parse_expr(tokens).unwrap(); 
         expr
@@ -130,6 +176,11 @@ mod tests {
         assert_eq!(parse("#NUM!"), Expr::Error(Error::Num)); 
         assert_eq!(parse("#N/A!"), Expr::Error(Error::NA)); 
         assert_eq!(parse("#GETTING_DATA"), Expr::Error(Error::GettingData)); 
+    }
+
+    #[test]
+    fn test_function() {
+        assert_eq!(parse("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::Literal(Literal::Text("a".to_string())), Expr::Literal(Literal::Text("b".to_string()))]}); 
     }
 }
 
@@ -198,11 +249,6 @@ mod tests {
     // #[test]
     // fn test_text() {
         // assert_eq!(&parse_expr(" \" TEST \" "), "\" TEST \"");
-    // }
-
-    // #[test]
-    // fn test_function() {
-        // assert_eq!(&parse_expr(" test('a', 'b') "), "test(\"a\", \"b\")"); 
     // }
 
     // #[test]

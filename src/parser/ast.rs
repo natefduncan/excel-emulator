@@ -7,13 +7,13 @@ pub enum Expr {
     Infix(Infix, Box<Expr>, Box<Expr>),
 	Func {
         name: String, 
-        args: Vec<Box<Expr>>
+        args: Vec<Expr>
     },
     Reference {
         sheet: String, 
         reference: String 
     }, 
-	Array(Vec<Box<Expr>>),
+	Array(Vec<Expr>),
     Error(Error)
 }
 
