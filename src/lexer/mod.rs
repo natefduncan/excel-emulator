@@ -246,6 +246,17 @@ fn lex_integer(input: &[u8]) -> IResult<&[u8], Token> {
     )(input)
 }
 
+// Ident
+fn lex_ident(input: &[u8]) -> IResult<&[u8], Token> {
+    map(
+        map_res(
+            map_res(alphanumeric1, complete_byte_slice_str_from_utf8),
+            complete_str_from_str,
+        ),
+        Token::Ident,
+    )(input)
+}
+
 // Tokens
 fn lex_token(input: &[u8]) -> IResult<&[u8], Token> {
     alt((
@@ -253,13 +264,13 @@ fn lex_token(input: &[u8]) -> IResult<&[u8], Token> {
         lex_string,
         lex_references,
         lex_integer,
+        lex_ident, 
     ))(input)
 }
 
 fn lex_tokens(input: &[u8]) -> IResult<&[u8], Vec<Token>> {
     many0(delimited(multispace0, lex_token, multispace0))(input)
 }
-
 
 pub struct Lexer; 
 impl Lexer {
@@ -364,6 +375,11 @@ mod tests {
     #[test]
     fn test_cell() {
         assert_eq!(lex(b"A1"), vec![Token::Cell(String::from("A1"))]); 
+    }
+
+    #[test]
+    fn test_ident() {
+        assert_eq!(lex(b"test"), vec![Token::Ident("test".to_string())]); 
     }
 
 
