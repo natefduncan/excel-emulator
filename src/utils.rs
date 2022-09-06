@@ -1,16 +1,10 @@
 use chrono::{NaiveDate, Duration}; 
 
-use crate::evaluate::*;
-use crate::parse::Expr;
-use crate::excel::ExprParser; 
+use crate::parser::{
+    parse_str, 
+    ast::Expr
+}; 
 use crate::reference::Reference; 
-
-pub fn evaluate_expr(expr_str: &str) -> String {
-    println!("{}", expr_str); 
-    let expr : Box<Expr> = ExprParser::new().parse(expr_str).unwrap(); 
-    println!("{:?}", expr); 
-    format!("{}", Value::from(expr)) 
-}
 
 pub fn excel_to_date(serial: f64)  -> NaiveDate {
     let start_date = NaiveDate::from_ymd(1899, 12, 30); 
@@ -29,7 +23,7 @@ pub fn adjust_formula(
 ) -> String {
     let row_offset: i32 = current_reference.row() as i32 - base_reference.row() as i32;
     let column_offset: i32 = current_reference.column() as i32 - base_reference.column() as i32;
-	let mut expression: Box<Expr> = ExprParser::new().parse(&formula_text).unwrap(); 
+    let mut expression: Expr = parse_str(&formula_text); 
     adjust_expression(row_offset, column_offset, &mut expression); 
 	format!("{}", expression) 
 }
@@ -40,14 +34,17 @@ pub fn adjust_expression(
     expression: &mut Expr
 ) {
     match *expression {
-        Expr::Cell { sheet: _, ref mut reference } => {
+        Expr::Reference { sheet: _, ref mut reference } => {
             let mut r = Reference::from(reference.to_string());
 			r.offset((row_offset, column_offset));
 			*reference = r.to_string(); 
         }, 
-        Expr::Op(ref mut a, _, ref mut b) => {
+        Expr::Infix(_, ref mut a, ref mut b) => {
             adjust_expression(row_offset, column_offset, a); 
             adjust_expression(row_offset, column_offset, b); 
+        }, 
+        Expr::Prefix(_, ref mut a) => {
+            adjust_expression(row_offset, column_offset, a); 
         }, 
         Expr::Func { name: _, ref mut args } => {
             for arg in args.iter_mut() {
