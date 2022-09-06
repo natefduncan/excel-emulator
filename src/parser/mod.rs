@@ -91,7 +91,7 @@ fn parse_error_expr(input: Tokens) -> IResult<Tokens, Expr> {
 }
 
 fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
-    preceded(comma_tag, parse_expr)(input)
+    preceded(alt((comma_tag, semicolon_tag)), parse_expr)(input)
 }
 
 fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
@@ -132,6 +132,19 @@ fn parse_func_expr(input: Tokens) -> IResult<Tokens, Expr> {
             Expr::Func { name: format!("{}", ident), args: exprs }
         }
    )(input)
+}
+
+fn parse_array_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    map(
+        delimited(
+            lbrace_tag, 
+            alt((parse_exprs, empty_boxed_vec)),
+            rbrace_tag,
+        ), 
+        |exprs| {
+            Expr::Array(exprs)
+        }
+    )(input)
 }
 
 fn parse_sheet_or_multisheet(input: Tokens) -> IResult<Tokens, Token> {
@@ -184,6 +197,7 @@ fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
 fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
         parse_func_expr, 
+        parse_array_expr, 
         parse_reference, 
         parse_error_expr, 
         parse_literal_expr, 
@@ -208,10 +222,10 @@ mod tests {
 
     #[test]
     fn test_literal() {
-        assert_eq!(parse("123"), Expr::Literal(Literal::Number(123.0))); 
-        assert_eq!(parse("123.12"), Expr::Literal(Literal::Number(123.12))); 
-        assert_eq!(parse("\"Test\""), Expr::Literal(Literal::Text("Test".to_string()))); 
-        assert_eq!(parse("TRUE"), Expr::Literal(Literal::Boolean(true))); 
+        assert_eq!(parse("123"), Expr::from(123.0)); 
+        assert_eq!(parse("123.12"), Expr::from(123.12)); 
+        assert_eq!(parse("\"Test\""), Expr::from("Test")); 
+        assert_eq!(parse("TRUE"), Expr::from(true)); 
     }
 
     #[test]
@@ -228,13 +242,18 @@ mod tests {
 
     #[test]
     fn test_function() {
-        assert_eq!(parse("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::Literal(Literal::Text("a".to_string())), Expr::Literal(Literal::Text("b".to_string()))]}); 
+        assert_eq!(parse("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::from("a"), Expr::from("b")]}); 
     }
 
     #[test]
     fn test_reference() {
         assert_eq!(parse("test!A1"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1".to_string()}); 
         assert_eq!(parse("test!A1:B2"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1:B2".to_string()}); 
+    }
+
+    #[test]
+    fn test_array() {
+        assert_eq!(parse("{1, 2, 3, 4}"), Expr::Array(vec![Expr::from(1.0), Expr::from(2.0), Expr::from(3.0), Expr::from(4.0)])); 
     }
 }
 
@@ -303,12 +322,6 @@ mod tests {
     // #[test]
     // fn test_text() {
         // assert_eq!(&parse_expr(" \" TEST \" "), "\" TEST \"");
-    // }
-
-    // #[test]
-    // fn test_array() {
-        // assert_eq!(&parse_expr(" {1, 2, 3, 4} "), "{1, 2, 3, 4}"); 
-        // assert_eq!(&parse_expr(" {1, 2; 3, 4} "), "{1, 2, 3, 4}"); 
     // }
 
     // #[test]
