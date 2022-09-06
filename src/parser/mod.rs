@@ -9,7 +9,10 @@ use nom::error::{Error as NomError, ErrorKind};
 
 pub mod ast; 
 
-use crate::lexer::token::{Token, Tokens}; 
+use crate::lexer::{
+    Lexer,
+    token::{Token, Tokens}
+}; 
 use crate::parser::ast::*; 
 
 
@@ -258,6 +261,13 @@ pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
     ))(input)
 }
 
+pub fn parse_str(s: &str) -> Expr {
+    let (_, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
+    let tokens = Tokens::new(&t); 
+    let (_, expr) = parse(tokens).unwrap(); 
+    expr
+}
+
 #[cfg(test)]
 mod tests {
     use crate::parser::parse; 
@@ -365,77 +375,3 @@ mod tests {
                 ))); 
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-    // use crate::excel::*; 
-    // fn parse_expr(expr: &str) -> String {
-        // println!("{}", expr); 
-        // println!("{:?}", ExprParser::new().parse_str(expr).unwrap()); 
-        // format!("{}", ExprParser::new().parse_str(expr).unwrap())
-    // }
-
-    // #[test]
-    // fn test_num() {
-        // assert_eq!(&parse_expr(" 1 "), "1"); 
-        // assert_eq!(&parse_expr(" 150 "), "150"); 
-    // }
-
-    // #[test]
-    // fn test_operators() {
-        // assert_eq!(&parse_expr("1 + 1"), "(1+1)"); 
-        // assert_eq!(&parse_expr("1 - 1"), "(1-1)");
-        // assert_eq!(&parse_expr("1 / 1"), "(1/1)");
-        // assert_eq!(&parse_expr("1 * 1"), "(1*1)");
-        // assert_eq!(&parse_expr("1 ^ 1"), "(1^1)");
-        // assert_eq!(&parse_expr("1 = 1"), "(1=1)");
-        // assert_eq!(&parse_expr("1 < 1"), "(1<1)");
-        // assert_eq!(&parse_expr("1 <= 1"), "(1<=1)");
-        // assert_eq!(&parse_expr("1 > 1"), "(1>1)");
-        // assert_eq!(&parse_expr("1 >= 1"), "(1>=1)");
-        // assert_eq!(&parse_expr("1 <> 1"), "(1<>1)");
-        // assert_eq!(&parse_expr("1 % 1"), "(1%1)");
-        // assert_eq!(&parse_expr("22 * 44 + 66"), "((22*44)+66)");
-        // assert_eq!(&parse_expr("(1+2)*(3+5)"), "((1+2)*(3+5))");
-    // }
-
-    // #[test] 
-    // fn test_errors() {
-        // assert_eq!(&parse_expr("#NULL!"), "#NULL!");
-        // assert_eq!(&parse_expr("#DIV/0!"), "#DIV/0!");
-        // assert_eq!(&parse_expr("#VALUE!"), "#VALUE!");
-        // assert_eq!(&parse_expr("#REF!"), "#REF!");
-        // assert_eq!(&parse_expr("#NAME?"), "#NAME?");
-        // assert_eq!(&parse_expr("#NUM!"), "#NUM!");
-        // assert_eq!(&parse_expr("#N/A"), "#N/A");
-        // assert_eq!(&parse_expr("#GETTING_DATA"), "#GETTING_DATA");
-    // }
-
-    // #[test]
-    // fn test_cell() {
-        // assert_eq!(&parse_expr(" Sheet!A1 "), "Sheet!A1");
-        // assert_eq!(&parse_expr(" 'Sheet 1'!A1 "), "'Sheet 1'!A1");
-        // assert_eq!(&parse_expr(" 'Sheet 1':'Sheet 2'!A1 "), "'Sheet 1':'Sheet 2'!A1");
-        // assert_eq!(&parse_expr(" Sheet1:Sheet2!A1 "), "Sheet1:Sheet2!A1");
-        // assert_eq!(&parse_expr(" Sheet1!A1:A2 "), "Sheet1!A1:A2");
-        // assert_eq!(&parse_expr(" Sheet1!$A$1:A2 "), "Sheet1!$A$1:A2");
-        // assert_eq!(&parse_expr(" A1 "), "A1");
-    // }
-
-    // #[test]
-    // fn test_bool() {
-        // assert_eq!(&parse_expr(" TRUE "), "TRUE"); 
-        // assert_eq!(&parse_expr(" FALSE "), "FALSE"); 
-    // }
-
-    // #[test]
-    // fn test_text() {
-        // assert_eq!(&parse_expr(" \" TEST \" "), "\" TEST \"");
-    // }
-
-    // #[test]
-    // fn test_mix() {
-        // assert_eq!(&parse_expr("test({1, 2, 3, 4}, 1, 'a')"), "test({1, 2, 3, 4}, 1, \"a\")");
-        // assert_eq!(&parse_expr("(1+2)+(10+test!A1)"), "((1+2)*(10+test!A1))"); 
-    // }
-// }
