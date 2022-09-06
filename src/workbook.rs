@@ -14,7 +14,7 @@ use quick_xml::{
 use anyhow::Result; 
 use ndarray::{Array2, Array}; 
 use crate::{
-    evaluate::Value, 
+    evaluate::value::Value, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
     utils::excel_to_date, 
@@ -255,7 +255,7 @@ impl Book {
                                     "TRUE" => Value::Bool(true), 
                                     "FALSE" => Value::Bool(false), 
                                     _ => {
-                                        Value::Num(cell_text.parse::<f32>().expect("Unable to parse to number"))
+                                        Value::Num(cell_text.parse::<f64>().expect("Unable to parse to number"))
                                     }
                                 }; 
                             } else {
@@ -402,7 +402,7 @@ impl SheetFlags {
 #[cfg(test)]
 mod tests {
     use crate::workbook::Book;
-    use crate::evaluate::Value;
+    use crate::evaluate::value::Value;
 
     #[test]
     fn test_sheet_names() {
