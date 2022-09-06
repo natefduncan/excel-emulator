@@ -40,7 +40,7 @@ impl From<bool> for Expr {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Error {
     Null,
     Div, 
@@ -86,12 +86,12 @@ impl From<bool> for Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Literal::Number(x) => write!(f, "{}", x.to_string()), 
+            Literal::Number(x) => write!(f, "{}", x), 
             Literal::Boolean(b) => {
                 if *b {
-                    write!(f, "{}", "TRUE")
+                    write!(f, "TRUE")
                 } else {
-                    write!(f, "{}", "FALSE")
+                    write!(f, "FALSE")
                 }
             },
             Literal::Text(s) => write!(f, "{}", s)
@@ -99,13 +99,13 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Prefix {
     Plus,
     Minus,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Infix {
     Plus,
     Minus,

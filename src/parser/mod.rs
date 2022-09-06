@@ -46,7 +46,7 @@ fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
             Token::Integer(_) => {
                 let (_, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
 				let mut res = String::new(); 
-                for t in t2.tok.into_iter() {
+                for t in t2.tok.iter() {
 					res = format!("{}{}", res, t);
                 }
                 Ok((i1, Literal::Number(res.parse::<f64>().unwrap())))
@@ -109,12 +109,10 @@ fn parse_ident(input: Tokens) -> IResult<Tokens, Token> {
     let (i1, t1) = take(1usize)(input)?;
     if t1.tok.is_empty() {
         Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
+    } else if matches!(t1.tok[0], Token::Ident(_)) {
+        Ok((i1, t1.tok[0].clone()))
     } else {
-        if matches!(t1.tok[0], Token::Ident(_)) {
-            Ok((i1, t1.tok[0].clone()))
-        } else {
-            Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
-        }
+        Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
     }
 }
 

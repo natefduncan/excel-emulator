@@ -3,7 +3,7 @@ use std::iter::Enumerate;
 use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
 use std::fmt; 
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Token {
     //Literal
     Integer(i64),
@@ -52,12 +52,12 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Token::Integer(i) => write!(f, "{}", i.to_string()), 
+            Token::Integer(i) => write!(f, "{}", i), 
             Token::Boolean(b) => {
                 if *b {
-                    write!(f, "{}", "TRUE")
+                    write!(f, "TRUE")
                 } else {
-                    write!(f, "{}", "FALSE")
+                    write!(f, "FALSE")
                 }
             }, 
             Token::Text(s) => write!(f, "{}", s), 
@@ -68,39 +68,39 @@ impl fmt::Display for Token {
             Token::VRange(s) => write!(f, "{}", s), 
             Token::HRange(s) => write!(f, "{}", s), 
             Token::Ident(s) => write!(f, "{}", s), 
-            Token::Null => write!(f, "{}", "#NULL!"), 
-            Token::Div => write!(f, "{}", "#DIV/0!"), 
-            Token::Value => write!(f, "{}", "#VALUE!"),
-            Token::Ref => write!(f, "{}", "#REF!"), 
-            Token::Name => write!(f, "{}", "#NAME!"), 
-            Token::Num => write!(f, "{}", "#NUM!"), 
-            Token::NA => write!(f, "{}", "#N/A!"), 
-            Token::GettingData => write!(f, "{}", "#GETTING_DATA"), 
-            Token::Plus => write!(f, "{}", "+"), 
-            Token::Minus => write!(f, "{}", "-"), 
-            Token::Divide => write!(f, "{}", "/"), 
-            Token::Multiply => write!(f, "{}", "*"), 
-            Token::Exponent => write!(f, "{}", "^"), 
-            Token::Ampersand => write!(f, "{}", "&"), 
-            Token::Equal => write!(f, "{}", "="), 
-            Token::Exclamation => write!(f, "{}", "!"), 
-            Token::Comma => write!(f, "{}", ","), 
-            Token::Period => write!(f, "{}", "."), 
-            Token::Colon => write!(f, "{}", ":"), 
-            Token::SemiColon => write!(f, "{}", ";"), 
-            Token::LAngle => write!(f, "{}", "<"), 
-            Token::RAngle => write!(f, "{}", ">"), 
-            Token::LParen => write!(f, "{}", "("), 
-            Token::RParen => write!(f, "{}", ")"), 
-            Token::LBrace => write!(f, "{}", "{"), 
-            Token::RBrace => write!(f, "{}", "}"), 
-            Token::LBracket => write!(f, "{}", "["), 
-            Token::RBracket => write!(f, "{}", "]")
+            Token::Null => write!(f, "#NULL!"), 
+            Token::Div => write!(f, "#DIV/0!"), 
+            Token::Value => write!(f, "#VALUE!"),
+            Token::Ref => write!(f, "#REF!"), 
+            Token::Name => write!(f, "#NAME!"), 
+            Token::Num => write!(f, "#NUM!"), 
+            Token::NA => write!(f, "#N/A!"), 
+            Token::GettingData => write!(f, "#GETTING_DATA"), 
+            Token::Plus => write!(f, "+"), 
+            Token::Minus => write!(f, "-"), 
+            Token::Divide => write!(f, "/"), 
+            Token::Multiply => write!(f, "*"), 
+            Token::Exponent => write!(f, "^"), 
+            Token::Ampersand => write!(f, "&"), 
+            Token::Equal => write!(f, "="), 
+            Token::Exclamation => write!(f, "!"), 
+            Token::Comma => write!(f, ","), 
+            Token::Period => write!(f, "."), 
+            Token::Colon => write!(f, ":"), 
+            Token::SemiColon => write!(f, ";"), 
+            Token::LAngle => write!(f, "<"), 
+            Token::RAngle => write!(f, ">"), 
+            Token::LParen => write!(f, "("), 
+            Token::RParen => write!(f, ")"), 
+            Token::LBrace => write!(f, "{{"), 
+            Token::RBrace => write!(f, "}}"), 
+            Token::LBracket => write!(f, "["), 
+            Token::RBracket => write!(f, "]")
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Tokens<'a> {
     pub tok: &'a [Token], 
     pub start: usize, 
