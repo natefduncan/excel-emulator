@@ -17,6 +17,43 @@ pub enum Expr {
     Error(Error)
 }
 
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Expr::Literal(l) => write!(f, "{}", l), 
+            Expr::Prefix(p, e) => write!(f, "{}{}", p, e), 
+            Expr::Infix(p, a, b) => write!(f, "({}{}{})", a, p, b), 
+            Expr::Func{name, args} => {
+                let output = format!("{}({})", name, exprs_string(args));
+                write!(f, "{}", output)
+            }, 
+            Expr::Reference{sheet, reference} => {
+                match sheet {
+                    Some(s) => {
+                        write!(f, "{}!{}", s, reference)
+                    }, 
+                    None => write!(f, "{}", reference)
+                }
+            }, 
+            Expr::Array(arr) => write!(f, "{{{}}}", exprs_string(arr)), 
+            Expr::Error(e) => write!(f, "{}", e)
+        }
+    }
+}
+
+fn exprs_string(v: &Vec<Expr>) -> String {
+    let mut output = String::new(); 
+    for (i, arg) in v.iter().enumerate() {
+        if i == v.len()-1 {
+            output.push_str(&arg.to_string());
+        } else {
+            output.push_str(&arg.to_string());
+            output.push_str(", ");
+        }
+    }
+    output
+}
+
 impl From<f64> for Expr {
     fn from(f: f64) -> Expr {
         Expr::Literal(Literal::from(f))    }
@@ -50,6 +87,21 @@ pub enum Error {
     Num, 
     NA, 
     GettingData
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Null => write!(f, "#NULL!"), 
+            Error::Div => write!(f, "#DIV/0!"), 
+            Error::Value => write!(f, "#VALUE!"),
+            Error::Ref => write!(f, "#REF!"),
+            Error::Name => write!(f, "#NAME!"), 
+            Error::Num => write!(f, "#NUM!"), 
+            Error::NA => write!(f, "#N/A!"), 
+            Error::GettingData => write!(f, "#GETTING_DATA")
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -105,6 +157,16 @@ pub enum Prefix {
     Minus,
 }
 
+impl fmt::Display for Prefix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Prefix::Plus => write!(f, "+"), 
+            Prefix::Minus => write!(f, "-"), 
+        }
+    }
+}
+ 
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Infix {
     Plus,
@@ -119,4 +181,23 @@ pub enum Infix {
     LessThanEqual,
     GreaterThan,
     LessThan,
+}
+
+impl fmt::Display for Infix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Infix::Plus => write!(f, "+"), 
+            Infix::Minus => write!(f, "-"), 
+            Infix::Divide => write!(f, "/"), 
+            Infix::Multiply => write!(f, "*"),
+            Infix::Exponent => write!(f, "^"), 
+            Infix::Ampersand => write!(f, "&"), 
+            Infix::Equal => write!(f, "="), 
+            Infix::NotEqual => write!(f, "<>"), 
+            Infix::GreaterThanEqual => write!(f, ">="), 
+            Infix::LessThanEqual => write!(f, "<="), 
+            Infix::GreaterThan => write!(f, ">"), 
+            Infix::LessThan => write!(f, "<") 
+        }
+    }
 }
