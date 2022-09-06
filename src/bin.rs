@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-// use excel_lib::workbook::Book; 
+use excel_lib::workbook::Book; 
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -17,19 +17,15 @@ enum Commands {
     Deps,
 }
 
-// fn main() {
-    // let cli = Cli::parse();
-    // let mut book: Book = Book::from(cli.path); 
-    // match &cli.command {
-        // Some(Commands::Load) => { book.load().expect("Could not load workbook.")}, 
-        // Some(Commands::Deps) => { 
-            // book.load().expect("Could not load workbook."); 
-            // println!("{}", book.dependencies); 
-        // }, 
-        // _ => {}
-    // }
-// }
-
 fn main() {
-
+    let cli = Cli::parse();
+    let mut book: Book = Book::from(cli.path); 
+    match &cli.command {
+        Some(Commands::Load) => { book.load().expect("Could not load workbook.")}, 
+        Some(Commands::Deps) => { 
+            book.load().expect("Could not load workbook."); 
+            println!("{}", book.dependencies); 
+        }, 
+        _ => {}
+    }
 }
