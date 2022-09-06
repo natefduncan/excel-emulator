@@ -28,6 +28,12 @@ impl From<String> for Expr {
     }
 }
 
+impl From<&str> for Expr {
+    fn from(s: &str) -> Expr {
+        Expr::from(s.to_string())
+    }
+}
+
 impl From<bool> for Expr {
     fn from(b: bool) -> Expr {
         Expr::Literal(Literal::from(b))
@@ -62,6 +68,12 @@ impl From<f64> for Literal {
 impl From<String> for Literal {
     fn from(s: String) -> Literal {
         Literal::Text(s)
+    }
+}
+
+impl From<&str> for Literal {
+    fn from(s: &str) -> Literal {
+        Literal::Text(s.to_string())
     }
 }
 
