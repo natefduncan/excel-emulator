@@ -3,7 +3,7 @@ use nom::bytes::complete::{tag, take, take_while};
 use nom::character::complete::{digit1, multispace0};
 use nom::combinator::{map, map_res, verify, opt};
 use nom::multi::many0;
-use nom::sequence::{preceded, delimited, pair};
+use nom::sequence::{preceded, delimited, pair, tuple};
 use nom::*;
 use nom::Err; 
 use nom::error::{Error as NomError, ErrorKind}; 
@@ -28,7 +28,7 @@ tag_token!(multiply_tag, Token::Multiply);
 tag_token!(exponent_tag, Token::Exponent); 
 tag_token!(ampersand_tag, Token::Ampersand); 
 tag_token!(equal_tag, Token::Equal); 
-tag_token!(exclamation_tag, Token::Exclamation); 
+tag_token!(not_equal_tag, Token::Equal); 
 tag_token!(comma_tag, Token::Comma); 
 tag_token!(period_tag, Token::Period); 
 tag_token!(colon_tag, Token::Colon); 
@@ -90,18 +90,23 @@ fn parse_error_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_error, Expr::Error)(input)
 }
 
-fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
-    preceded(alt((comma_tag, semicolon_tag)), parse_expr)(input)
-}
-
-fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
+fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Box<Expr>> {
     map(
-        pair(parse_expr, many0(parse_comma_exprs)),
-        |(first, second)| [&vec![first][..], &second[..]].concat(),
+        preceded(alt((comma_tag, semicolon_tag)), parse_expr), 
+        |expr| {
+            Box::new(expr)
+        }
     )(input)
 }
 
-fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
+fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Box<Expr>>> {
+    map(
+        pair(parse_expr, many0(parse_comma_exprs)),
+        |(first, second)| [&vec![Box::new(first)][..], &second[..]].concat(),
+    )(input)
+}
+
+fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Box<Expr>>> {
     Ok((input, vec![]))
 }
 
@@ -195,7 +200,7 @@ fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
 }
 
 fn parse_block(input: Tokens) -> IResult<Tokens, Expr> {
-    delimited(lparen_tag, parse_expr, rparen_tag)(input)
+    delimited(lparen_tag, parse, rparen_tag)(input)
 }
 
 fn parse_prefix(input: Tokens) -> IResult<Tokens, Expr> {
@@ -215,73 +220,150 @@ fn parse_prefix(input: Tokens) -> IResult<Tokens, Expr> {
         }
     )(input)
 }
+
+pub fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
+    alt((
+        map(plus_tag, |_| Infix::Plus), 
+        map(minus_tag, |_| Infix::Minus), 
+        map(divide_tag, |_| Infix::Divide), 
+        map(multiply_tag, |_| Infix::Multiply), 
+        map(equal_tag, |_| Infix::Equal), 
+        map(pair(langle_tag, rangle_tag), |(_, _)| Infix::NotEqual), 
+        map(pair(langle_tag, equal_tag), |(_, _)| Infix::LessThanEqual), 
+        map(pair(rangle_tag, equal_tag), |(_, _)| Infix::GreaterThanEqual), 
+        map(rangle_tag, |_| Infix::GreaterThan), 
+        map(langle_tag, |_| Infix::LessThan), 
+        map(exponent_tag, |_| Infix::Exponent), 
+    ))(input)
+}
+
+fn parse_infix(input: Tokens) -> IResult<Tokens, Expr> {
+    map(
+        tuple((
+            alt((parse_expr, parse_block)), 
+            parse_infix_tags,
+            alt((parse_expr, parse_block)), 
+        )),
+        |(a, infix, b)| {
+            Expr::Infix(infix, Box::new(a), Box::new(b))
+        }
+    )(input)
+}
     
 fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
+        parse_error_expr, 
         parse_func_expr, 
         parse_array_expr, 
-        parse_prefix, 
         parse_reference, 
-        parse_error_expr, 
         parse_literal_expr, 
+    ))(input)
+}
+
+fn parse(input: Tokens) -> IResult<Tokens, Expr> {
+    alt((
+        parse_infix, 
+        parse_prefix,
+        parse_block, 
+        parse_expr
     ))(input)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse_expr; 
+    use crate::parser::parse; 
     use crate::parser::ast::{Expr, Literal, Error, Prefix, Infix}; 
     use crate::lexer::Lexer; 
     use crate::lexer::token::{Token, Tokens}; 
 
-    fn parse(s: &str) -> Expr {
+    fn parse_str(s: &str) -> Expr {
         let (remain, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
         println!("remain: {:?}", remain); 
         println!("tokens: {:?}", t); 
         let tokens = Tokens::new(&t); 
-        let (tokens, expr) = parse_expr(tokens).unwrap(); 
+        let (tokens, expr) = parse(tokens).unwrap(); 
         expr
     }
 
     #[test]
     fn test_literal() {
-        assert_eq!(parse("123"), Expr::from(123.0)); 
-        assert_eq!(parse("123.12"), Expr::from(123.12)); 
-        assert_eq!(parse("\"Test\""), Expr::from("Test")); 
-        assert_eq!(parse("TRUE"), Expr::from(true)); 
+        assert_eq!(parse_str("123"), Expr::from(123.0)); 
+        assert_eq!(parse_str("123.12"), Expr::from(123.12)); 
+        assert_eq!(parse_str("\"Test\""), Expr::from("Test")); 
+        assert_eq!(parse_str("TRUE"), Expr::from(true)); 
     }
 
     #[test]
     fn test_errors() {
-        assert_eq!(parse("#NULL!"), Expr::Error(Error::Null)); 
-        assert_eq!(parse("#DIV/0!"), Expr::Error(Error::Div)); 
-        assert_eq!(parse("#VALUE!"), Expr::Error(Error::Value)); 
-        assert_eq!(parse("#REF!"), Expr::Error(Error::Ref)); 
-        assert_eq!(parse("#NAME!"), Expr::Error(Error::Name)); 
-        assert_eq!(parse("#NUM!"), Expr::Error(Error::Num)); 
-        assert_eq!(parse("#N/A!"), Expr::Error(Error::NA)); 
-        assert_eq!(parse("#GETTING_DATA"), Expr::Error(Error::GettingData)); 
+        assert_eq!(parse_str("#NULL!"), Expr::Error(Error::Null)); 
+        assert_eq!(parse_str("#DIV/0!"), Expr::Error(Error::Div)); 
+        assert_eq!(parse_str("#VALUE!"), Expr::Error(Error::Value)); 
+        assert_eq!(parse_str("#REF!"), Expr::Error(Error::Ref)); 
+        assert_eq!(parse_str("#NAME!"), Expr::Error(Error::Name)); 
+        assert_eq!(parse_str("#NUM!"), Expr::Error(Error::Num)); 
+        assert_eq!(parse_str("#N/A!"), Expr::Error(Error::NA)); 
+        assert_eq!(parse_str("#GETTING_DATA"), Expr::Error(Error::GettingData)); 
     }
 
     #[test]
     fn test_function() {
-        assert_eq!(parse("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::from("a"), Expr::from("b")]}); 
+        assert_eq!(parse_str("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Box::new(Expr::from("a")), Box::new(Expr::from("b"))]}); 
     }
 
     #[test]
     fn test_reference() {
-        assert_eq!(parse("test!A1"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1".to_string()}); 
-        assert_eq!(parse("test!A1:B2"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1:B2".to_string()}); 
+        assert_eq!(parse_str("test!A1"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1".to_string()}); 
+        assert_eq!(parse_str("test!A1:B2"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1:B2".to_string()}); 
     }
 
     #[test]
     fn test_array() {
-        assert_eq!(parse("{1, 2, 3, 4}"), Expr::Array(vec![Expr::from(1.0), Expr::from(2.0), Expr::from(3.0), Expr::from(4.0)])); 
+        assert_eq!(parse_str("{1, 2, 3, 4}"), Expr::Array(vec![Box::new(Expr::from(1.0)), Box::new(Expr::from(2.0)), Box::new(Expr::from(3.0)), Box::new(Expr::from(4.0))])); 
     }
 
     #[test]
     fn test_prefix() {
-        assert_eq!(parse("+1"), Expr::Prefix(Prefix::Plus, Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("+1"), Expr::Prefix(Prefix::Plus, Box::new(Expr::from(1.0)))); 
+    }
+
+    #[test]
+    fn test_infix() {
+        assert_eq!(parse_str("1+1"), Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("(1+1)"), Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 - 1)"), Expr::Infix(Infix::Minus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 / 1)"), Expr::Infix(Infix::Divide, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 * 1)"), Expr::Infix(Infix::Multiply, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 ^ 1)"), Expr::Infix(Infix::Exponent, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 = 1)"), Expr::Infix(Infix::Equal, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 < 1)"), Expr::Infix(Infix::LessThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <= 1)"), Expr::Infix(Infix::LessThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 > 1)"), Expr::Infix(Infix::GreaterThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 >= 1)"), Expr::Infix(Infix::GreaterThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <> 1)"), Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <> 1)"), Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("(1+2)*(3+5)"), Expr::Infix(
+                Infix::Multiply, 
+                Box::new(Expr::Infix(
+                        Infix::Plus,
+                        Box::new(Expr::from(1.0)), 
+                        Box::new(Expr::from(2.0))
+                )), 
+                Box::new(Expr::Infix(
+                        Infix::Plus, 
+                        Box::new(Expr::from(3.0)), 
+                        Box::new(Expr::from(5.0))
+                ))
+        )); 
+        assert_eq!(parse_str("(1+(2*1))"), Expr::Infix(
+                Infix::Plus, 
+                Box::new(Expr::from(1.0)), 
+                Box::new(
+                    Expr::Infix(
+                        Infix::Multiply, 
+                        Box::new(Expr::from(2.0)), 
+                        Box::new(Expr::from(1.0))
+                    )
+                ))); 
     }
 }
 
@@ -290,8 +372,8 @@ mod tests {
     // use crate::excel::*; 
     // fn parse_expr(expr: &str) -> String {
         // println!("{}", expr); 
-        // println!("{:?}", ExprParser::new().parse(expr).unwrap()); 
-        // format!("{}", ExprParser::new().parse(expr).unwrap())
+        // println!("{:?}", ExprParser::new().parse_str(expr).unwrap()); 
+        // format!("{}", ExprParser::new().parse_str(expr).unwrap())
     // }
 
     // #[test]

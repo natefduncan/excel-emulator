@@ -7,13 +7,13 @@ pub enum Expr {
     Infix(Infix, Box<Expr>, Box<Expr>),
 	Func {
         name: String, 
-        args: Vec<Expr>
+        args: Vec<Box<Expr>>
     },
     Reference {
         sheet: Option<String>, 
         reference: String 
     }, 
-	Array(Vec<Expr>),
+	Array(Vec<Box<Expr>>),
     Error(Error)
 }
 
@@ -111,6 +111,7 @@ pub enum Infix {
     Minus,
     Divide,
     Multiply,
+    Exponent,
     Equal,
     NotEqual,
     GreaterThanEqual,
