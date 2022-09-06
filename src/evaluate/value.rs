@@ -2,9 +2,12 @@ use chrono::NaiveDate;
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
+use ndarray::Array2; 
 
 use crate::parser::ast::{Expr, Infix, Prefix, Literal}; 
 use crate::function::*; 
+use crate::reference::Reference;
+use crate::workbook::Book; 
 
 type NumType = f64;
 type BoolType = bool;
@@ -20,7 +23,30 @@ pub enum Value {
     Date(DateType), 
     Array(ArrayType), 
     Formula(TextType), 
+    Ref { sheet: Option<String>, reference: Reference }, 
     Empty
+}
+
+pub fn evaluate_expr(expr: Expr, book: &Book, resolve_references: bool) -> Value {
+    match expr {
+        Expr::Reference{ sheet, reference } => {
+            if resolve_references {
+                let cells: Vec<(usize, usize)> = Reference::from(reference).get_cells(); 
+                let sheet: &Array2<Value> = match sheet {
+                    Some(s) => book.get_sheet_by_name(&s), 
+                    None => book.get_sheet_by_idx(book.current_sheet)
+                }; 
+                if cells.len() == 1 {
+                    sheet[[cells[0].0-1, cells[0].1-1]].clone()
+                } else {
+                    Value::from(cells.iter().map(|(r, c)| sheet[[r-1, c-1]].clone()).collect::<Vec<Value>>()) 
+                }
+            } else {
+                Value::from(Value::Ref { sheet, reference: Reference::from(reference) })
+            }
+        }, 
+        c => Value::from(c)
+    }
 }
 
 impl From<f64> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
@@ -67,6 +93,7 @@ impl From<Expr> for Value {
         }
     }
 }
+
 impl From<Vec<Expr>> for Value {
     fn from(v: Vec<Expr>) -> Value {
        Value::from(v.iter().cloned().map(|x| Value::from(x)).collect::<Vec<Value>>())
@@ -78,7 +105,6 @@ impl From<Box<Expr>> for Value {
     }
 }
 
-
 impl Value {
     pub fn is_num(&self) -> bool { matches!(self, Value::Num(_)) }
     pub fn is_bool(&self) -> bool { matches!(self, Value::Bool(_)) }
@@ -87,6 +113,7 @@ impl Value {
     pub fn is_array(&self) -> bool { matches!(self, Value::Array(_)) }
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
     pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
+    pub fn is_ref(&self) -> bool { matches!(self, Value::Ref {sheet: _, reference: _}) }
 
     pub fn as_num(&self) -> NumType {
         match self {
@@ -156,6 +183,12 @@ impl fmt::Display for Value {
                 })
             }, 
             Value::Empty => { write!(f, "Empty") }
+            Value::Ref {sheet, reference} => { 
+                match sheet {
+                    Some(s) => write!(f, "{}!{}", s, reference), 
+                    None => write!(f, "{}", reference)
+                }
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ pub struct Book {
     pub sheets: Vec<Sheet>, 
     shared_strings: Vec<SharedString>, 
     styles: Vec<Style>, 
+    pub current_sheet: usize, 
     pub dependencies: DependencyTree, 
     pub cells: HashMap<Sheet, Array2<Value>>
 }
@@ -36,7 +37,7 @@ pub struct Book {
 impl From<String> for Book {
     fn from(s: String) -> Self {
         let zip = Self::zip_from_path(&s); 
-        Book { zip, sheets: vec![], shared_strings: vec![], styles: vec![], cells: HashMap::new(), dependencies: DependencyTree::new() }
+        Book { zip, sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, cells: HashMap::new(), dependencies: DependencyTree::new() }
     }
 }
 
