@@ -1,7 +1,7 @@
 use nom::branch::*;
 use nom::bytes::complete::{tag, take, take_while, take_while1};
 use nom::character::complete::{alpha1, alphanumeric1, digit1, multispace0};
-use nom::combinator::{map, map_res, recognize};
+use nom::combinator::{map, map_res, recognize, opt};
 use nom::multi::many0;
 use nom::sequence::{terminated, delimited, separated_pair, pair};
 use nom::*;
@@ -202,7 +202,7 @@ fn lex_multisheet(input: &[u8]) -> IResult<&[u8], Token> {
 
 fn lex_cell(input: &[u8]) -> IResult<&[u8], Token> {
     map(
-        recognize(pair(alpha1, digit1)), 
+        recognize(pair(pair(opt(tag("$")), alpha1), pair(opt(tag("$")), digit1))), 
         |c| {
             let s = complete_byte_slice_str_from_utf8(c).unwrap(); 
             Token::Cell(s.to_string())
