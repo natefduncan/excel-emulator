@@ -17,6 +17,23 @@ pub enum Expr {
     Error(Error)
 }
 
+impl From<f64> for Expr {
+    fn from(f: f64) -> Expr {
+        Expr::Literal(Literal::from(f))    }
+}
+
+impl From<String> for Expr {
+    fn from(s: String) -> Expr {
+        Expr::Literal(Literal::from(s))
+    }
+}
+
+impl From<bool> for Expr {
+    fn from(b: bool) -> Expr {
+        Expr::Literal(Literal::from(b))
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Error {
     Null,
@@ -34,6 +51,24 @@ pub enum Literal {
     Number(f64),
     Boolean(bool),
     Text(String),
+}
+
+impl From<f64> for Literal {
+    fn from(f: f64) -> Literal {
+        Literal::Number(f)
+    }
+}
+
+impl From<String> for Literal {
+    fn from(s: String) -> Literal {
+        Literal::Text(s)
+    }
+}
+
+impl From<bool> for Literal {
+    fn from(b: bool) -> Literal {
+        Literal::Boolean(b)
+    }
 }
 
 impl fmt::Display for Literal {
