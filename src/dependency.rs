@@ -6,8 +6,11 @@ use petgraph::{
 use std::{fmt, cmp::Ordering}; 
 use crate::{
     workbook::Sheet,
-    excel::ExprParser, 
-    parse::Expr, reference::Reference, 
+    parser::{
+        parse_str, 
+        ast::Expr
+    }, 
+    reference::Reference, 
 }; 
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
@@ -67,13 +70,13 @@ impl DependencyTree {
     pub fn add_formula(&mut self, cell: CellId, formula_text: &str, sheets: &Vec<Sheet>) {
         let mut chars = formula_text.chars();
         chars.next(); // FIXME: Parse can't handle the = in the front of a formula
-        let expression = ExprParser::new().parse(chars.as_str()).unwrap();
-        self.add_expression(cell, *expression, sheets); 
+        let expression: Expr = parse_str(chars.as_str());
+        self.add_expression(cell, expression, sheets); 
     }
 
     pub fn add_expression(&mut self, cell: CellId, expression: Expr, sheets: &Vec<Sheet>) {
         match expression {
-            Expr::Cell { sheet, reference } => {
+            Expr::Reference { sheet, reference } => {
                 let sheet_id = match sheet {
                     Some(s) => {
                         sheets.iter().position(|x|  {
@@ -88,18 +91,21 @@ impl DependencyTree {
                     self.add_precedent(&CellId { sheet: sheet_id, row: c.0, column: c.1 }, &cell); 
                 }
             },
-            Expr::Op(a, _, b) => {
+            Expr::Infix(_, a, b) => {
                 self.add_expression(cell, *a, sheets); 
                 self.add_expression(cell, *b, sheets); 
             }, 
+            Expr::Prefix(_, a) => {
+                self.add_expression(cell, *a, sheets); 
+            }, 
             Expr::Func { name: _, args } => {
                 for arg in args.into_iter() {
-                    self.add_expression(cell, *arg, sheets); 
+                    self.add_expression(cell, arg, sheets); 
                 }
             }, 
             Expr::Array(arr) => {
                 for a in arr.into_iter() {
-                    self.add_expression(cell, *a, sheets); 
+                    self.add_expression(cell, a, sheets); 
                 }
             }, 
             _ => {}

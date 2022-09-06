@@ -1,8 +1,8 @@
-use crate::parse::Expr; 
-use crate::evaluate::Value; 
+use crate::parser::ast::Expr; 
+use crate::evaluate::value::Value; 
 use function_macro::excel_function; 
 
-pub fn evaluate_function(name: &str, args: Vec<Box<Expr>>) -> Value {
+pub fn evaluate_function(name: &str, args: Vec<Expr>) -> Value {
 	match name {
 		"SUM" => Sum::from(args).evaluate(), 
 		"AVERAGE" => Average::from(args).evaluate(), 
@@ -79,29 +79,30 @@ fn count(args: Vec<Value>) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::evaluate_expr;
+    use crate::evaluate::evaluate_str;
+    use crate::evaluate::value::Value; 
 
 	#[test]
     fn test_sum() {
-		assert_eq!(&evaluate_expr("SUM(1,2,3,4,5)"), "15");
-		assert_eq!(&evaluate_expr("SUM({1,2;3,4})"), "10");
-		assert_eq!(&evaluate_expr("SUM({1,2,3,4,5},6,\"7\")"), "28");
-		assert_eq!(&evaluate_expr("SUM({1,\"2\",TRUE,4})"), "5");
+		assert_eq!(evaluate_str("SUM(1,2,3,4,5)"), Value::from(15.0));
+		assert_eq!(evaluate_str("SUM({1,2;3,4})"), Value::from(10.0));
+		assert_eq!(evaluate_str("SUM({1,2,3,4,5},6,\"7\")"), Value::from(28.0));
+		assert_eq!(evaluate_str("SUM({1,\"2\",TRUE,4})"), Value::from(5.0));
     }
 
     #[test]
     fn test_average() {
-		assert_eq!(&evaluate_expr("AVERAGE(1,2,3,4,5)"), "3");
-		assert_eq!(&evaluate_expr("AVERAGE({1,2;3,4})"), "2.5");
-		assert_eq!(&evaluate_expr("AVERAGE({1,2,3,4,5},6,\"7\")"), "4");
-		assert_eq!(&evaluate_expr("AVERAGE({1,\"2\",TRUE,4})"), "2.5");
+		assert_eq!(evaluate_str("AVERAGE(1,2,3,4,5)"), Value::from(3.0));
+		assert_eq!(evaluate_str("AVERAGE({1,2;3,4})"), Value::from(2.5));
+		assert_eq!(evaluate_str("AVERAGE({1,2,3,4,5},6,\"7\")"), Value::from(4.0));
+		assert_eq!(evaluate_str("AVERAGE({1,\"2\",TRUE,4})"), Value::from(2.5));
     }
 
     #[test]
     fn test_count() {
-		assert_eq!(&evaluate_expr("COUNT(1,2,3,4,5)"), "5");
-		assert_eq!(&evaluate_expr("COUNT({1,2,3,4,5})"), "5");
-		assert_eq!(&evaluate_expr("COUNT({1,2,3,4,5},6,\"7\")"), "7");
+		assert_eq!(evaluate_str("COUNT(1,2,3,4,5)"), Value::from(5.0));
+		assert_eq!(evaluate_str("COUNT({1,2,3,4,5})"), Value::from(5.0));
+		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")"), Value::from(7.0));
     }
  
 }

@@ -3,10 +3,10 @@ use std::fmt;
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
 
-use crate::parse::{Expr, Opcode}; 
+use crate::parser::ast::{Expr, Infix, Prefix, Literal}; 
 use crate::function::*; 
 
-type NumType = f32;
+type NumType = f64;
 type BoolType = bool;
 type TextType = String; 
 type ArrayType = Vec<Value>;
@@ -23,7 +23,7 @@ pub enum Value {
     Empty
 }
 
-impl From<f32> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
+impl From<f64> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
 impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
@@ -32,34 +32,44 @@ impl From<NaiveDate> for Value { fn from(d: DateType) -> Value { Value::Date(d) 
 impl From<Expr> for Value {
     fn from(expr: Expr) -> Value {
         match expr {
-            Expr::Num(x) => Value::from(x),
-            Expr::Bool(x) => Value::from(x), 
-            Expr::Text(x) => Value::from(x),
-            Expr::Array(x) => Value::from(x.to_vec()), 
-            Expr::Op(a, opcode, b) => {
-                match opcode {
-                    Opcode::Add => Value::from(*a) + Value::from(*b), 
-                    Opcode::Subtract => Value::from(*a) - Value::from(*b), 
-                    Opcode::Multiply => Value::from(*a) * Value::from(*b), 
-                    Opcode::Divide => Value::from(*a) / Value::from(*b), 
-                    Opcode::Exponent => Exponent {a: Value::from(*a), b: Value::from(*b)}.evaluate(), 
-                    Opcode::Equal => Value::from(Value::from(a) == Value::from(b)), 
-                    Opcode::NotEqual => Value::from(Value::from(a) != Value::from(b)), 
-                    Opcode::LessThan => Value::from(Value::from(a) < Value::from(b)), 
-                    Opcode::LessThanOrEqual => Value::from(Value::from(a) <= Value::from(b)), 
-                    Opcode::GreaterThan => Value::from(Value::from(a) > Value::from(b)), 
-                    Opcode::GreaterThanOrEqual => Value::from(Value::from(a) >= Value::from(b)), 
-                    _ => panic!("Opcode {} does not convert to a value.", opcode) 
+            Expr::Literal(lit) => {
+                match lit {
+                    Literal::Number(f) => Value::from(f), 
+                    Literal::Boolean(b) => Value::from(b), 
+                    Literal::Text(s) => Value::from(s)
+                }
+            },
+            Expr::Prefix(p, box_expr) => { 
+                match p {
+                    Prefix::Plus => Value::from(Value::from(*box_expr).as_num().abs()),
+                    Prefix::Minus => Value::from(*box_expr) * Value::from(-1.0)
+                }
+            }, 
+            Expr::Infix(i, a, b) => {
+                match i {
+                    Infix::Plus => Value::from(*a) + Value::from(*b), 
+                    Infix::Minus => Value::from(*a) - Value::from(*b), 
+                    Infix::Multiply => Value::from(*a) * Value::from(*b), 
+                    Infix::Divide => Value::from(*a) / Value::from(*b), 
+                    Infix::Exponent => Exponent {a: Value::from(*a), b: Value::from(*b)}.evaluate(), 
+                    Infix::Equal => Value::from(Value::from(a) == Value::from(b)), 
+                    Infix::NotEqual => Value::from(Value::from(a) != Value::from(b)), 
+                    Infix::LessThan => Value::from(Value::from(a) < Value::from(b)), 
+                    Infix::LessThanEqual => Value::from(Value::from(a) <= Value::from(b)), 
+                    Infix::GreaterThan => Value::from(Value::from(a) > Value::from(b)), 
+                    Infix::GreaterThanEqual => Value::from(Value::from(a) >= Value::from(b)), 
+                    _ => panic!("Infix {:?} does not convert to a value.", i) 
                 }
             }, 
             Expr::Func {name, args} => evaluate_function(name.as_str(), args),
-            _ => panic!("Expression {} does not convert to a value.", expr)  
+            Expr::Array(x) => Value::from(x.to_vec()), 
+            _ => panic!("Expression {:?} does not convert to a value.", expr)  
         }
     }
 }
-impl From<Vec<Box<Expr>>> for Value {
-    fn from(v: Vec<Box<Expr>>) -> Value {
-       Value::from(v.iter().cloned().map(|x| Value::from(*x)).collect::<Vec<Value>>())
+impl From<Vec<Expr>> for Value {
+    fn from(v: Vec<Expr>) -> Value {
+       Value::from(v.iter().cloned().map(|x| Value::from(x)).collect::<Vec<Value>>())
     }
 }
 impl From<Box<Expr>> for Value {
@@ -260,32 +270,5 @@ impl Neg for Value {
     type Output = Self;
     fn neg(self) -> Self {
         Value::from(-self.as_num())
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-	use crate::utils::evaluate_expr;
-
-    #[test]
-    fn test_op_codes() {
-        assert_eq!(&evaluate_expr(" 1 + 1 "), "2");
-        assert_eq!(&evaluate_expr(" 1 - 1 "), "0"); 
-        assert_eq!(&evaluate_expr(" 2 * 2 "), "4"); 
-        assert_eq!(&evaluate_expr(" (2 + 1) * 2 "), "6"); 
-        assert_eq!(&evaluate_expr(" 8 / 4 "), "2"); 
-        assert_eq!(&evaluate_expr(" 8^2 "), "64"); 
-    }
-
-    #[test]
-    fn test_conditionals() {
-        assert_eq!(&evaluate_expr(" 1=1 "), "TRUE"); 
-    }
-
-    #[test]
-    fn test_formula() {
-        assert_eq!(&evaluate_expr(" SUM(1, 1) "), "2"); 
-        assert_eq!(&evaluate_expr(" SUM(SUM(1, 2), 1) "), "4"); 
     }
 }

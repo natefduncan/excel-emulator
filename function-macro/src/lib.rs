@@ -40,7 +40,7 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
                     }
                 } else {
                     quote! {
-                        let #fnarg = Value::from(*v.pop().unwrap()); 
+                        let #fnarg = Value::from(v.pop().unwrap()); 
                     }
                 }
             } else {
@@ -88,8 +88,8 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
             }
         }
 
-        impl From<Vec<Box<Expr>>> for #struct_name_ident { 
-            fn from(mut v: Vec<Box<Expr>>) -> #struct_name_ident {
+        impl From<Vec<Expr>> for #struct_name_ident { 
+            fn from(mut v: Vec<Expr>) -> #struct_name_ident {
                 #(#field_declarations)*; 
                 #struct_name_ident {#(#arg_declarations),*}
             }
