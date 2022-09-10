@@ -2,7 +2,6 @@
 name = "excel-emulator2"
 version = "0.1.0"
 edition = "2021"
-build = "build.rs"
 
 [lib]
 name = "excel_lib"
@@ -17,8 +16,6 @@ anyhow = "1.0.61"
 chrono = "0.4.22"
 clap = { version = "3.2.19", features = ["derive"] }
 function-macro = { version = "0.1.0", path = "function-macro" }
-lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
-lalrpop-util = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
 ndarray = "0.15.6"
 nom = "7.1.1"
 petgraph = "0.6.2"
