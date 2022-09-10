@@ -13,6 +13,7 @@ type NumType = f64;
 type BoolType = bool;
 type TextType = String; 
 type ArrayType = Vec<Value>;
+type Array2Type = Array2<Value>;
 type DateType = NaiveDate; 
 
 #[derive(Clone, PartialEq, Debug)]
@@ -22,6 +23,7 @@ pub enum Value {
     Text(TextType), 
     Date(DateType), 
     Array(ArrayType), 
+    Array2(Array2Type), 
     Formula(TextType), 
     Ref { sheet: Option<String>, reference: Reference }, 
     Empty
@@ -32,6 +34,7 @@ impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
 impl From<Vec<Value>> for Value { fn from(v: ArrayType) -> Value { Value::Array(v) }}
+impl From<Array2<Value>> for Value { fn from(v: Array2Type) -> Value { Value::Array2(v) }}
 impl From<NaiveDate> for Value { fn from(d: DateType) -> Value { Value::Date(d) }}
 
 impl Value {
@@ -40,22 +43,10 @@ impl Value {
     pub fn is_text(&self) -> bool { matches!(self, Value::Text(_)) }
     pub fn is_date(&self) -> bool { matches!(self, Value::Date(_)) }
     pub fn is_array(&self) -> bool { matches!(self, Value::Array(_)) }
+    pub fn is_array2(&self) -> bool { matches!(self, Value::Array2(_)) }
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
     pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
     pub fn is_ref(&self) -> bool { matches!(self, Value::Ref {sheet: _, reference: _}) }
-
-    pub fn resolve_ref<'a>(&'a self, book: &'a Book) -> ArrayView2<Value> {
-        if let Value::Ref {sheet, reference} = self {
-            let (row, col, num_rows, num_cols) = reference.get_dimensions(); 
-            let sheet: &Array2<Value> = match sheet {
-                Some(s) => book.get_sheet_by_name(&s), 
-                None => book.get_sheet_by_idx(book.current_sheet)
-            }; 
-            sheet.slice(s![row..(row+num_rows), col..(col+num_cols)])
-        } else {
-            panic!("Can only resolve references."); 
-        }
-    }
 
     pub fn as_num(&self) -> NumType {
         match self {
@@ -130,7 +121,8 @@ impl fmt::Display for Value {
                     Some(s) => write!(f, "{}!{}", s, reference), 
                     None => write!(f, "{}", reference)
                 }
-            }
+            }, 
+            Value::Array2(arr2) => write!(f, "{}", arr2)
         }
     }
 }

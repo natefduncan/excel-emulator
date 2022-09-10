@@ -1,11 +1,12 @@
 use crate::evaluate::value::Value; 
 use function_macro::function; 
 
-pub fn get_function(name: &str, args: Vec<Value>) -> Box<dyn Function> {
+pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
     match name {
-		"SUM" => Box::new(Sum::from(args)), 
-		"AVERAGE" => Box::new(Average::from(args)), 
-		"COUNT" => Box::new(Count::from(args)),	
+		"SUM" => Box::new(Sum::from(args)).evaluate(), 
+		"AVERAGE" => Box::new(Average::from(args)).evaluate(), 
+		"COUNT" => Box::new(Count::from(args)).evaluate(),	
+		"EXPONENT" => Box::new(Exponent::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -85,27 +86,27 @@ mod tests {
 	#[test]
     fn test_sum() {
         let book = &Book::new();
-		assert_eq!(evaluate_str("SUM(1,2,3,4,5)", book), Value::from(15.0));
-		assert_eq!(evaluate_str("SUM({1,2;3,4})", book), Value::from(10.0));
-		assert_eq!(evaluate_str("SUM({1,2,3,4,5},6,\"7\")", book), Value::from(28.0));
-		assert_eq!(evaluate_str("SUM({1,\"2\",TRUE,4})", book), Value::from(5.0));
+		assert_eq!(evaluate_str("SUM(1,2,3,4,5)"), Value::from(15.0));
+		assert_eq!(evaluate_str("SUM({1,2;3,4})"), Value::from(10.0));
+		assert_eq!(evaluate_str("SUM({1,2,3,4,5},6,\"7\")"), Value::from(28.0));
+		assert_eq!(evaluate_str("SUM({1,\"2\",TRUE,4})"), Value::from(5.0));
     }
 
     #[test]
     fn test_average() {
         let book = &Book::new();
-		assert_eq!(evaluate_str("AVERAGE(1,2,3,4,5)", book), Value::from(3.0));
-		assert_eq!(evaluate_str("AVERAGE({1,2;3,4})", book), Value::from(2.5));
-		assert_eq!(evaluate_str("AVERAGE({1,2,3,4,5},6,\"7\")", book), Value::from(4.0));
-		assert_eq!(evaluate_str("AVERAGE({1,\"2\",TRUE,4})", book), Value::from(2.5));
+		assert_eq!(evaluate_str("AVERAGE(1,2,3,4,5)"), Value::from(3.0));
+		assert_eq!(evaluate_str("AVERAGE({1,2;3,4})"), Value::from(2.5));
+		assert_eq!(evaluate_str("AVERAGE({1,2,3,4,5},6,\"7\")"), Value::from(4.0));
+		assert_eq!(evaluate_str("AVERAGE({1,\"2\",TRUE,4})"), Value::from(2.5));
     }
 
     #[test]
     fn test_count() {
         let book = &Book::new();
-		assert_eq!(evaluate_str("COUNT(1,2,3,4,5)", book), Value::from(5.0));
-		assert_eq!(evaluate_str("COUNT({1,2,3,4,5})", book), Value::from(5.0));
-		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")", book), Value::from(7.0));
+		assert_eq!(evaluate_str("COUNT(1,2,3,4,5)"), Value::from(5.0));
+		assert_eq!(evaluate_str("COUNT({1,2,3,4,5})"), Value::from(5.0));
+		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")"), Value::from(7.0));
     }
  
 }

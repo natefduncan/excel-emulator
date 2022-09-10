@@ -12,13 +12,14 @@ use quick_xml::{
     }, 
 };
 use anyhow::Result; 
-use ndarray::{Array2, Array}; 
+use ndarray::{Array2, Array, s, ArrayView2}; 
 use crate::{
     evaluate::value::Value, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
     utils::excel_to_date, 
     reference::Reference,
+    parser::ast::Expr, 
     cell::Cell, 
 }; 
 
@@ -325,6 +326,24 @@ impl Book {
 
     pub fn get_sheet_by_idx(&self, idx: usize) -> &Array2<Value> {
         self.cells.get(&self.sheets[idx]).unwrap()
+    }
+    
+    pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
+        if let Expr::Reference {sheet, reference} = expr {
+            let (row, col, num_rows, num_cols) = Reference::from(reference).get_dimensions();
+            let sheet: &Array2<Value> = match sheet {
+                Some(s) => self.get_sheet_by_name(&s),
+                None => {
+                    let sheet_id = self.current_sheet.clone();
+                    self.get_sheet_by_idx(
+                        sheet_id
+                    )
+                }
+            };
+            sheet.slice(s![row..(row+num_rows), col..(col+num_cols)]).into_owned()
+        } else {
+            panic!("Can only resolve a reference expression.")
+        }
     }
 }
 
