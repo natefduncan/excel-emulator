@@ -14,12 +14,18 @@ use quick_xml::{
 use anyhow::Result; 
 use ndarray::{Array2, Array, s, ArrayView2}; 
 use crate::{
-    evaluate::value::Value, 
+    evaluate::{
+        value::Value, 
+        evaluate_expr_with_context
+    }, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
     utils::excel_to_date, 
     reference::Reference,
-    parser::ast::Expr, 
+    parser::{
+        parse_str, 
+        ast::Expr
+    }, 
     cell::Cell, 
 }; 
 
@@ -340,9 +346,24 @@ impl Book {
                     )
                 }
             };
-            sheet.slice(s![row..(row+num_rows), col..(col+num_cols)]).into_owned()
+            sheet.slice(s![(row-1)..(row+num_rows-1), (col-1)..(col+num_cols-1)]).into_owned()
         } else {
             panic!("Can only resolve a reference expression.")
+        }
+    }
+
+    pub fn calculate(&mut self) {
+        for cell_id in self.dependencies.get_order().iter() {
+            // Evaluate cell id
+            let cell_value = &self.get_sheet_by_idx(cell_id.sheet)[[cell_id.row-1, cell_id.column-1]]; 
+            if let Value::Formula(formula_text) = cell_value.clone() {
+                let mut chars = formula_text.chars(); // Remove = at beginning
+                chars.next();
+                let expr: Expr = parse_str(chars.as_str()); 
+                println!("{:?}", expr); 
+                let value = evaluate_expr_with_context(expr, &self);
+                println!("{:?}", value); 
+            }
         }
     }
 }

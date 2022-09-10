@@ -29,6 +29,13 @@ fn sum(args: Vec<Value>) -> Value {
                     s += x
                 }
             }
+        } else if let Value::Array2(arr2) = v {
+            for x in arr2 {
+                println!("{:?}", x); 
+                if x.is_num() {
+                    s += x
+                }
+            }
         } else {
             s += Value::from(v.as_num())
         }

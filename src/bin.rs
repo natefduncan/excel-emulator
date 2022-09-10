@@ -21,6 +21,7 @@ struct Cli {
 enum Commands {
     Load, 
     Deps,
+    Order,
     Get {
         #[clap(value_parser)]
         range: String 
@@ -34,11 +35,13 @@ fn main() {
     match &cli.command {
         Some(Commands::Load) => { book.load().expect("Could not load workbook.")}, 
         Some(Commands::Deps) => { 
-            book.load().expect("Could not load workbook."); 
             println!("{}", book.dependencies); 
         }, 
+        Some(Commands::Order) => {
+            println!("{:?}", book.dependencies.get_order()); 
+        }, 
         Some(Commands::Get {range}) => {
-            book.load().expect("Could not load workbook."); 
+            // book.calculate(); 
             let expr: Expr = parse_str(&range);
             if matches!(expr, Expr::Reference { sheet: _, reference: _} ) {
 				println!("{}", &book.resolve_ref(expr)); 

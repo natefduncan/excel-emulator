@@ -58,21 +58,50 @@ pub fn evaluate_expr(expr: Expr) -> Value {
 		Expr::Array(x) => Value::Array(x.into_iter().map(|e| evaluate_expr(e)).collect::<Vec<Value>>()), 
 		_ => panic!("Expression {:?} does not convert to a value.", expr)  
 	}
-   
 }
 
 pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Value {
     match expr {
         Expr::Reference { sheet: _, reference: _ } => {
-            Value::from(book.resolve_ref(expr.clone()))
+            let ref_value = Value::from(book.resolve_ref(expr.clone()));
+            ref_value
 		}, 
-        Expr::Func {ref name, args: _} => {
-            match name.as_str() {
-                "INDEX" => Value::from(0.0), // TODO: Implement volatile functions. 
-                _ => evaluate_expr(expr)
-            }
+        Expr::Func {name, args} => {
+            let arg_values: Vec<Value> = args.into_iter().map(|x| evaluate_expr_with_context(x, book)).collect::<Vec<Value>>(); 
+            get_function_value(&name.clone(), arg_values)
         },
-        c => evaluate_expr(c)
+		Expr::Literal(lit) => {
+			match lit {
+				Literal::Number(f) => Value::from(f), 
+				Literal::Boolean(b) => Value::from(b), 
+				Literal::Text(s) => Value::from(s)
+			}
+		},
+		Expr::Prefix(p, box_expr) => { 
+			match p {
+				Prefix::Plus => Value::from(evaluate_expr_with_context(*box_expr, book).as_num().abs()),
+				Prefix::Minus => evaluate_expr_with_context(*box_expr, book) * Value::from(-1.0)
+			}
+		}, 
+		Expr::Infix(i, a, b) => {
+			match i {
+				Infix::Plus => evaluate_expr_with_context(*a, book) + evaluate_expr_with_context(*b, book), 
+				Infix::Minus => evaluate_expr_with_context(*a, book) - evaluate_expr_with_context(*b, book), 
+				Infix::Multiply => evaluate_expr_with_context(*a, book) * evaluate_expr_with_context(*b, book), 
+				Infix::Divide => evaluate_expr_with_context(*a, book) / evaluate_expr_with_context(*b, book), 
+				Infix::Exponent => Exponent {a: evaluate_expr_with_context(*a, book), b: evaluate_expr_with_context(*b, book)}.evaluate(), 
+				Infix::NotEqual => Value::from(evaluate_expr_with_context(*a, book) != evaluate_expr_with_context(*b, book)), 
+				Infix::Equal => Value::from(evaluate_expr_with_context(*a, book) == evaluate_expr_with_context(*b, book)), 
+				Infix::LessThan => Value::from(evaluate_expr_with_context(*a, book) < evaluate_expr_with_context(*b, book)), 
+				Infix::LessThanEqual => Value::from(evaluate_expr_with_context(*a, book) <= evaluate_expr_with_context(*b, book)), 
+				Infix::GreaterThan => Value::from(evaluate_expr_with_context(*a, book) > evaluate_expr_with_context(*b, book)), 
+				Infix::GreaterThanEqual => Value::from(evaluate_expr_with_context(*a, book) >= evaluate_expr_with_context(*b, book)), 
+				_ => panic!("Infix {:?} does not convert to a value.", i) 
+			}
+		}, 
+		Expr::Array(x) => Value::Array(x.into_iter().map(|e| evaluate_expr_with_context(e, book)).collect::<Vec<Value>>()), 
+        _ => panic!("Expression {:?} does not convert to a value.", expr)  
+
 	}
 }
 
