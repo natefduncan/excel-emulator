@@ -1,4 +1,4 @@
-use ndarray::Array2; use crate::parser::{
+use crate::parser::{
     ast::{Literal, Prefix, Infix, Expr}, 
     parse
 }; 
@@ -8,7 +8,6 @@ use crate::lexer::{
     Lexer, 
 }; 
 use crate::workbook::Book; 
-use crate::reference::Reference;
 
 pub mod value; 
 use crate::evaluate::value::Value; 
@@ -23,8 +22,8 @@ pub fn evaluate_str(s: &str) -> Value {
 pub fn evaluate_expr(expr: Expr) -> Value {
      match expr {
         Expr::Func {name, args} => {
-            let arg_values: Vec<Value> = args.into_iter().map(|x| evaluate_expr(x)).collect::<Vec<Value>>(); 
-            get_function_value(&name.clone(), arg_values)
+            let arg_values: Vec<Value> = args.into_iter().map(evaluate_expr).collect::<Vec<Value>>(); 
+            get_function_value(&name, arg_values)
         },
 		Expr::Literal(lit) => {
 			match lit {
@@ -55,7 +54,7 @@ pub fn evaluate_expr(expr: Expr) -> Value {
 				_ => panic!("Infix {:?} does not convert to a value.", i) 
 			}
 		}, 
-		Expr::Array(x) => Value::Array(x.into_iter().map(|e| evaluate_expr(e)).collect::<Vec<Value>>()), 
+		Expr::Array(x) => Value::Array(x.into_iter().map(evaluate_expr).collect::<Vec<Value>>()), 
 		_ => panic!("Expression {:?} does not convert to a value.", expr)  
 	}
 }
@@ -63,12 +62,11 @@ pub fn evaluate_expr(expr: Expr) -> Value {
 pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Value {
     match expr {
         Expr::Reference { sheet: _, reference: _ } => {
-            let ref_value = Value::from(book.resolve_ref(expr.clone()));
-            ref_value
+            Value::from(book.resolve_ref(expr.clone()))
 		}, 
         Expr::Func {name, args} => {
             let arg_values: Vec<Value> = args.into_iter().map(|x| evaluate_expr_with_context(x, book)).collect::<Vec<Value>>(); 
-            get_function_value(&name.clone(), arg_values)
+            get_function_value(&name, arg_values)
         },
 		Expr::Literal(lit) => {
 			match lit {

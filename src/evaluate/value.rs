@@ -2,12 +2,9 @@ use chrono::NaiveDate;
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
-use ndarray::{ArrayView2, Array2, s}; 
+use ndarray::Array2; 
 
-use crate::parser::ast::{Expr, Infix, Prefix, Literal}; 
-use crate::function::*; 
 use crate::reference::Reference;
-use crate::workbook::Book; 
 
 type NumType = f64;
 type BoolType = bool;
@@ -57,6 +54,9 @@ impl Value {
                     true => 1.0, 
                     false => 0.0
                 }
+            }, 
+            Value::Array2(arr2) => { // Assume single cell
+                arr2[[0,0]].as_num()
             }, 
             _ => panic!("{} cannot be converted to a number.", self)
         }
@@ -182,6 +182,7 @@ impl Add for Value {
                Value::Num(x) => Value::from(x + other.as_num()), 
                Value::Text(ref x) => Value::from(format!("{}{}", x, other.as_text())),
                Value::Bool(_) => Value::from(self.as_num() + other.as_num()), 
+               Value::Array2(_) => Value::from(self.as_num() + other.as_num()), 
                //TODO
                _ => panic!("{} cannot be added to {}.", other, self)
            }

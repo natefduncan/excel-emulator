@@ -12,7 +12,7 @@ use quick_xml::{
     }, 
 };
 use anyhow::Result; 
-use ndarray::{Array2, Array, s, ArrayView2}; 
+use ndarray::{Array2, Array, s}; 
 use crate::{
     evaluate::{
         value::Value, 
@@ -54,6 +54,12 @@ impl From<&str> for Book {
     }
 }
 
+impl Default for Book {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Book {
     pub fn new() -> Book {
         Book { zip: None, sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, cells: HashMap::new(), dependencies: DependencyTree::new() }
@@ -82,7 +88,7 @@ impl Book {
                             let decoded_text: String = Self::decode_text_event(&reader, e);
                             if !decoded_text.is_empty() {
                                 self.shared_strings.push(
-                                    SharedString(Box::new(Self::decode_text_event(&reader, e)))
+                                    SharedString(Self::decode_text_event(&reader, e))
                                 )
                             }
                         }
@@ -169,14 +175,11 @@ impl Book {
                     Ok(Event::Empty(ref e)) if e.name() == b"dimension" => {
                         for a in e.attributes() {
                             let a = a.unwrap(); 
-                            match a.key {
-                                b"ref" => {
-                                    let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
-                                    let (_row, _column, num_rows, num_cols) = Reference::from(dimension).get_dimensions(); 
-                                    let sheet: Sheet = self.sheets.get(sheet_idx).unwrap().clone();
-                                    self.cells.insert(sheet, Array::from_elem((num_rows, num_cols), Value::Empty)); 
-                                }, 
-                                _ => {}
+                            if let b"ref" = a.key {
+                                let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
+                                let (_row, _column, num_rows, num_cols) = Reference::from(dimension).get_dimensions(); 
+                                let sheet: Sheet = self.sheets.get(sheet_idx).unwrap().clone();
+                                self.cells.insert(sheet, Array::from_elem((num_rows, num_cols), Value::Empty)); 
                             }
                         }
                     }, 
@@ -221,22 +224,19 @@ impl Book {
                         // Shared formula
                         for a in e.attributes() {
                             let a = a.unwrap();
-                            match a.key {
-                                b"si" => {
-                                    let formula_index: usize = a.unescape_and_decode_value(&reader).unwrap().parse::<usize>().unwrap(); 
-                                    let (start_cell, formula_text): &(Cell, String) = flags.shared_formulas.get(formula_index).unwrap(); 
-                                    let base_reference = Reference::from(start_cell.as_tuple()); 
-                                    let current_cell = Cell::from(flags.current_cell_reference.clone()); 
-                                    let current_reference = Reference::from(current_cell.as_tuple());
-                                    let adjusted_formula: Value = Value::Formula(format!("={}", adjust_formula(base_reference, current_reference, formula_text.clone()))); 
-                                    let sheet = self.sheets.get(sheet_idx).unwrap(); 
-                                    let (row, column): (usize, usize) = current_cell.as_tuple(); 
-                                    // println!("{}, {}", flags.current_cell_reference, adjusted_formula); 
-                                    self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = adjusted_formula.clone(); 
-                                    self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &adjusted_formula.to_string(), &self.sheets); 
-                                    flags.reset(); 
-                                }, 
-                                _ => {}
+                            if let b"si" = a.key {
+                                let formula_index: usize = a.unescape_and_decode_value(&reader).unwrap().parse::<usize>().unwrap(); 
+                                let (start_cell, formula_text): &(Cell, String) = flags.shared_formulas.get(formula_index).unwrap(); 
+                                let base_reference = Reference::from(start_cell.as_tuple()); 
+                                let current_cell = Cell::from(flags.current_cell_reference.clone()); 
+                                let current_reference = Reference::from(current_cell.as_tuple());
+                                let adjusted_formula: Value = Value::Formula(format!("={}", adjust_formula(base_reference, current_reference, formula_text.clone()))); 
+                                let sheet = self.sheets.get(sheet_idx).unwrap(); 
+                                let (row, column): (usize, usize) = current_cell.as_tuple(); 
+                                // println!("{}, {}", flags.current_cell_reference, adjusted_formula); 
+                                self.cells.get_mut(sheet).unwrap()[[row-1, column-1]] = adjusted_formula.clone(); 
+                                self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &adjusted_formula.to_string(), &self.sheets); 
+                                flags.reset(); 
                             }
                         }
                     }, 
@@ -259,7 +259,7 @@ impl Book {
                             } else if flags.is_string {
                                 let shared_string_idx: usize = cell_text.parse::<usize>().unwrap();
                                 let SharedString(s) = self.shared_strings.get(shared_string_idx).unwrap();
-                                value = Value::from(*s.clone()); 
+                                value = Value::from(s.clone()); 
                             } else if flags.is_date {
                                 value = Value::from(excel_to_date(cell_text.parse::<f64>().unwrap())); 
                             } else if !cell_text.is_empty() {
@@ -280,7 +280,7 @@ impl Book {
                             if value.is_formula() {
                                 self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &value.to_string(), &self.sheets); 
                             }
-                            self.cells.get_mut(&sheet).unwrap()[[row-1, column-1]] = value; 
+                            self.cells.get_mut(sheet).unwrap()[[row-1, column-1]] = value; 
                            flags.reset(); 
                         }
                     }, 
@@ -326,24 +326,21 @@ impl Book {
         Style { number_format_id, apply_number_format }
     }
 
-    pub fn get_sheet_by_name(&self, s: &str) -> &Array2<Value> {
-       self.cells.get(&Sheet(s.to_owned())).unwrap()
+    pub fn get_sheet_by_name(&self, s: &str) -> Sheet {
+       Sheet(s.to_owned())
     }
 
-    pub fn get_sheet_by_idx(&self, idx: usize) -> &Array2<Value> {
-        self.cells.get(&self.sheets[idx]).unwrap()
+    pub fn get_sheet_by_idx(&self, idx: usize) -> Sheet {
+        self.sheets[idx].clone()
     }
     
     pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
         if let Expr::Reference {sheet, reference} = expr {
             let (row, col, num_rows, num_cols) = Reference::from(reference).get_dimensions();
             let sheet: &Array2<Value> = match sheet {
-                Some(s) => self.get_sheet_by_name(&s),
+                Some(s) => self.cells.get(&self.get_sheet_by_name(&s)).unwrap(),
                 None => {
-                    let sheet_id = self.current_sheet.clone();
-                    self.get_sheet_by_idx(
-                        sheet_id
-                    )
+                    self.cells.get(&self.get_sheet_by_idx(self.current_sheet)).unwrap()
                 }
             };
             sheet.slice(s![(row-1)..(row+num_rows-1), (col-1)..(col+num_cols-1)]).into_owned()
@@ -354,15 +351,14 @@ impl Book {
 
     pub fn calculate(&mut self) {
         for cell_id in self.dependencies.get_order().iter() {
-            // Evaluate cell id
-            let cell_value = &self.get_sheet_by_idx(cell_id.sheet)[[cell_id.row-1, cell_id.column-1]]; 
+            let sheet: &Sheet = &self.get_sheet_by_idx(cell_id.sheet); 
+            let cell_value = &self.cells.get(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]]; 
             if let Value::Formula(formula_text) = cell_value.clone() {
                 let mut chars = formula_text.chars(); // Remove = at beginning
                 chars.next();
                 let expr: Expr = parse_str(chars.as_str()); 
-                println!("{:?}", expr); 
-                let value = evaluate_expr_with_context(expr, &self);
-                println!("{:?}", value); 
+                let value = evaluate_expr_with_context(expr, self);
+                self.cells.get_mut(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]] = value; 
             }
         }
     }
@@ -391,16 +387,12 @@ impl Sheet {
 }
 
 #[derive(Debug)]
-pub struct SharedString(Box<String>); 
+pub struct SharedString(String); 
+
+#[derive(Default)]
 pub struct Style {
     pub number_format_id: usize, 
     pub apply_number_format: bool 
-}
-
-impl Default for Style {
-    fn default() -> Style {
-        Style { number_format_id: 0, apply_number_format: false }
-    }
 }
 
 impl Style {

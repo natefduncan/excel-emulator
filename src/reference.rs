@@ -75,13 +75,13 @@ impl From<(usize, usize, usize, usize)> for Reference {
 
 impl From<String> for Reference {
     fn from(a1 : String) -> Reference {
-        if !a1.contains(":") {
+        if !a1.contains(':') {
             // Single Cell (A1)
             let cell = Cell::from(a1); 
             Reference::from(cell) 
         } else {
             // Range (A1:A1), VRange(A:A), and HRange(1:1)
-            let mut cells_split = a1.split(":").map(|x| x.to_owned()).collect::<Vec<String>>(); 
+            let mut cells_split = a1.split(':').map(|x| x.to_owned()).collect::<Vec<String>>(); 
             let c1: String = cells_split.remove(0); 
             let c2: String = cells_split.remove(0); 
             Reference::from((Cell::from(c1), Some(Cell::from(c2))))

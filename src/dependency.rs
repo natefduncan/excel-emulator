@@ -62,6 +62,12 @@ Precedent cells — cells that are referred to by a formula in another cell. For
 Dependent cells — these cells contain formulas that refer to other cells. For example, if cell D10 contains the formula =B5, cell D10 is a dependent of cell B5.
 */
 
+impl Default for DependencyTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DependencyTree {
     pub fn new() -> DependencyTree {
         DependencyTree { tree: DiGraphMap::new() }
@@ -86,7 +92,7 @@ impl DependencyTree {
                     }, 
                     None => cell.sheet
                 }; 
-                let reference = Reference::from(reference.to_string()); 
+                let reference = Reference::from(reference); 
                 for c in reference.get_cells() {
                     self.add_precedent(&CellId { sheet: sheet_id, row: c.0, column: c.1 }, &cell); 
                 }

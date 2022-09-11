@@ -99,7 +99,7 @@ impl From<String> for Cell {
         // Check if hrange
         } else if range.chars().filter(|c| c.is_alphabetic()).count() == 0 {
             let row_anchor : bool = range.starts_with('$');
-            let row_num_str = range.chars().filter(|c| c.is_digit(10)).collect::<String>();
+            let row_num_str = range.chars().filter(|c| c.is_ascii_digit()).collect::<String>();
             let row: usize = row_num_str.parse().unwrap();
             Cell {
                 row: CellIndex::from((row, row_anchor)), 
@@ -119,7 +119,7 @@ impl From<String> for Cell {
                 .chars()
                 .filter(|c| c.is_alphabetic())
                 .collect::<String>();
-            let row_num_str = range.chars().filter(|c| c.is_digit(10)).collect::<String>();
+            let row_num_str = range.chars().filter(|c| c.is_ascii_digit()).collect::<String>();
             let row: usize = row_num_str.parse().unwrap();
             let mut col = 0;
             for (_, c) in col_str.to_lowercase().chars().enumerate() {
@@ -189,7 +189,7 @@ impl fmt::Display for Cell {
             if self.column.anchor {
                 output = format!("${}", col_string);
             } else {
-                output = col_string.to_string();
+                output = col_string;
             }
         }
         if self.row.index != 0 {
