@@ -26,6 +26,10 @@ enum Commands {
         #[clap(value_parser)]
         range: String 
     }, 
+    Calculate {
+        #[clap(value_parser)]
+        range: String 
+    }, 
 }
 
 fn main() {
@@ -41,14 +45,23 @@ fn main() {
             println!("{:?}", book.dependencies.get_order()); 
         }, 
         Some(Commands::Get {range}) => {
-            // book.calculate(); 
-            let expr: Expr = parse_str(&range);
+            let expr: Expr = parse_str(range);
             if matches!(expr, Expr::Reference { sheet: _, reference: _} ) {
 				println!("{}", &book.resolve_ref(expr)); 
             } else {
                 panic!("Could not resolve {} to a reference.", range); 
             }
         }, 
+        Some(Commands::Calculate {range}) => {
+            book.calculate(); 
+            let expr: Expr = parse_str(range);
+            if matches!(expr, Expr::Reference { sheet: _, reference: _} ) {
+				println!("{}", &book.resolve_ref(expr)); 
+            } else {
+                panic!("Could not resolve {} to a reference.", range); 
+            }
+ 
+        }
         _ => {}
     }
 }
