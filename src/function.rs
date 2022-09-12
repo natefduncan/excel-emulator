@@ -88,11 +88,9 @@ fn count(args: Vec<Value>) -> Value {
 mod tests {
     use crate::evaluate::evaluate_str;
     use crate::evaluate::value::Value; 
-    use crate::workbook::Book; 
 
 	#[test]
     fn test_sum() {
-        let book = &Book::new();
 		assert_eq!(evaluate_str("SUM(1,2,3,4,5)"), Value::from(15.0));
 		assert_eq!(evaluate_str("SUM({1,2;3,4})"), Value::from(10.0));
 		assert_eq!(evaluate_str("SUM({1,2,3,4,5},6,\"7\")"), Value::from(28.0));
@@ -101,7 +99,6 @@ mod tests {
 
     #[test]
     fn test_average() {
-        let book = &Book::new();
 		assert_eq!(evaluate_str("AVERAGE(1,2,3,4,5)"), Value::from(3.0));
 		assert_eq!(evaluate_str("AVERAGE({1,2;3,4})"), Value::from(2.5));
 		assert_eq!(evaluate_str("AVERAGE({1,2,3,4,5},6,\"7\")"), Value::from(4.0));
@@ -110,7 +107,6 @@ mod tests {
 
     #[test]
     fn test_count() {
-        let book = &Book::new();
 		assert_eq!(evaluate_str("COUNT(1,2,3,4,5)"), Value::from(5.0));
 		assert_eq!(evaluate_str("COUNT({1,2,3,4,5})"), Value::from(5.0));
 		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")"), Value::from(7.0));

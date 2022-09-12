@@ -333,7 +333,7 @@ impl Book {
     pub fn get_sheet_by_idx(&self, idx: usize) -> Sheet {
         self.sheets[idx].clone()
     }
-    
+
     pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
         if let Expr::Reference {sheet, reference} = expr {
             let (row, col, num_rows, num_cols) = Reference::from(reference).get_dimensions();
@@ -438,8 +438,13 @@ impl SheetFlags {
 
 #[cfg(test)]
 mod tests {
-    use crate::workbook::Book;
+    use crate::workbook::{Sheet, Book};
     use crate::evaluate::value::Value;
+
+    fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> &'a Value {
+        let sheet: Sheet = book.get_sheet_by_name(sheet_name); 
+        &book.cells.get(&sheet).unwrap()[[row, column]]
+    }
 
     #[test]
     fn test_sheet_names() {
@@ -454,13 +459,13 @@ mod tests {
     fn test_cells() {
         let mut book = Book::from("assets/data_types.xlsx"); 
         book.load().expect("Could not load workbook"); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[0, 0]], Value::from("Text")); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[1, 0]], Value::from("a")); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[2, 0]], Value::from("b")); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[3, 0]], Value::from("c")); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[1, 4]], Value::Formula(String::from("=B2+1"))); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[2, 4]], Value::Formula(String::from("=B3+1"))); 
-        assert_eq!(book.get_sheet_by_name("test 1")[[3, 4]], Value::Formula(String::from("=(B4+1)")));
+        assert_eq!(get_cell(&book, "test 1", 0, 0), &Value::from("Text")); 
+        assert_eq!(get_cell(&book, "test 1", 1, 0), &Value::from("a")); 
+        assert_eq!(get_cell(&book, "test 1", 2, 0), &Value::from("b")); 
+        assert_eq!(get_cell(&book, "test 1", 3, 0), &Value::from("c")); 
+        assert_eq!(get_cell(&book, "test 1", 1, 4), &Value::Formula(String::from("=B2+1"))); 
+        assert_eq!(get_cell(&book, "test 1", 2, 4), &Value::Formula(String::from("=B3+1"))); 
+        assert_eq!(get_cell(&book, "test 1", 3, 4), &Value::Formula(String::from("=(B4+1)"))); 
     }
 }
 

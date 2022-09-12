@@ -107,11 +107,9 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Value {
 mod tests {
 	use crate::evaluate::evaluate_str;
     use crate::evaluate::value::Value; 
-    use crate::workbook::Book; 
 
     #[test]
     fn test_op_codes() {
-        let book = &Book::new(); 
         assert_eq!(evaluate_str(" 1 + 1 "), Value::from(2.0));
         assert_eq!(evaluate_str(" 1 - 1 "), Value::from(0.0)); 
         assert_eq!(evaluate_str(" 2 * 2 "), Value::from(4.0)); 
@@ -122,13 +120,11 @@ mod tests {
 
     #[test]
     fn test_conditionals() {
-        let book = &Book::new(); 
         assert_eq!(evaluate_str(" 1=1 "), Value::from(true)); 
     }
 
     #[test]
     fn test_formula() {
-        let book = &Book::new(); 
         assert_eq!(evaluate_str(" SUM(1, 1) "), Value::from(2.0)); 
         assert_eq!(evaluate_str(" SUM(SUM(1, 2), 1) "), Value::from(4.0)); 
     }
