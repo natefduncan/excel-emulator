@@ -7,6 +7,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"AVERAGE" => Box::new(Average::from(args)).evaluate(), 
 		"COUNT" => Box::new(Count::from(args)).evaluate(),	
 		"EXPONENT" => Box::new(Exponent::from(args)).evaluate(),	
+		"CONCAT" => Box::new(Concat::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -81,6 +82,11 @@ fn count(args: Vec<Value>) -> Value {
         }
 	}
     Value::from(count)
+}
+
+#[function]
+fn concat(a: Value, b: Value) -> Value {
+    Value::from(format!("{}{}", a.as_text(), b.as_text()))
 }
 
 #[cfg(test)]
