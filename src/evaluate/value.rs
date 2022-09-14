@@ -1,4 +1,4 @@
-use chrono::NaiveDate; 
+use chrono::{Duration, NaiveDate}; 
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
@@ -82,6 +82,9 @@ impl Value {
         match self {
             Value::Text(x) 
             | Value::Formula(x) => x.clone(), 
+            Value::Array2(arr2) => { // Assume single cell
+                arr2[[0,0]].as_text()
+            }, 
             _ => panic!("{} cannot be converted to a string.", self)
         } 
    }
@@ -182,8 +185,14 @@ impl Add for Value {
                Value::Num(x) => Value::from(x + other.as_num()), 
                Value::Text(ref x) => Value::from(format!("{}{}", x, other.as_text())),
                Value::Bool(_) => Value::from(self.as_num() + other.as_num()), 
-               Value::Array2(_) => Value::from(self.as_num() + other.as_num()), 
-               //TODO
+               Value::Array2(arr2) => Value::from(arr2[[0,0]].clone() + other), // Assume single cell
+               Value::Date(_) => {
+                   if self.is_date() {
+                       Value::from(self.as_date().checked_add_signed(Duration::days(other.as_num() as i64)).unwrap())
+                   } else {
+                       Value::from(other.as_date().checked_add_signed(Duration::days(self.as_num() as i64)).unwrap())
+                   }
+               }, 
                _ => panic!("{} cannot be added to {}.", other, self)
            }
     }
@@ -205,7 +214,13 @@ impl Sub for Value {
            match self {
                Value::Num(x) => Value::from(x - other.as_num()), 
                Value::Bool(_) => Value::from(self.as_num() - other.as_num()), 
-               // TODO
+               Value::Date(_) => {
+                   if self.is_date() {
+                       Value::from(self.as_date().checked_sub_signed(Duration::days(other.as_num() as i64)).unwrap())
+                   } else {
+                       Value::from(other.as_date().checked_sub_signed(Duration::days(self.as_num() as i64)).unwrap())
+                   }
+               }, 
                _ => panic!("{} cannot be subtracted from {}.", other, self)
            }
     }
