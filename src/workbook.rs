@@ -12,7 +12,7 @@ use quick_xml::{
     }, 
 };
 use anyhow::Result; 
-use ndarray::{Array2, Array, s}; 
+use ndarray::{Array2, Array, s, Axis, ArrayView}; 
 use crate::{
     evaluate::{
         value::Value, 
@@ -336,28 +336,39 @@ impl Book {
 
     pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
         if let Expr::Reference {sheet, reference} = expr {
-            let (row, col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();
+            let (mut row, mut col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();
             let sheet: &Array2<Value> = match sheet {
                 Some(s) => self.cells.get(&self.get_sheet_by_name(&s)).unwrap(),
                 None => {
                     self.cells.get(&self.get_sheet_by_idx(self.current_sheet)).unwrap()
                 }
             };
-            let row_idx: usize; 
-            if num_rows == usize::MAX {
-                row_idx = 0; 
+            if num_rows == usize::MAX { 
                 num_rows = sheet.dim().0; 
-            } else {
-                row_idx = row - 1; 
+                row = 1; // To avoid subtract overflow on row_idx_start
             }
-            let col_idx: usize;
-            if num_cols == usize::MAX {
-                col_idx = 0; 
-                num_cols = sheet.dim().1; 
-            } else {
-                col_idx = col - 1;
+            if num_cols == usize::MAX { 
+                num_cols = sheet.dim().0; 
+                col = 1; // To avoid subtract overflow on col_idx_start
             }
-            sheet.slice(s![row_idx..(row_idx + num_rows), col_idx..(col_idx + num_cols)]).into_owned()
+            let row_idx_start: usize = sheet.dim().0.min(row-1);
+            let row_idx_end: usize = sheet.dim().0.min(row+num_rows-1);
+            let rows_append: usize = num_rows - (row_idx_end - row_idx_start);
+            let col_idx_start: usize = sheet.dim().1.min(col-1);
+            let col_idx_end: usize = sheet.dim().1.min(col+num_cols-1);
+            let cols_append: usize = num_cols - (col_idx_end - col_idx_start);
+            let mut output: Array2<Value> = sheet.slice(s![row_idx_start..row_idx_end, col_idx_start..col_idx_end]).into_owned(); 
+            if rows_append > 0 {
+                for _ in 0..rows_append {
+                    output.push(Axis(0), ArrayView::from(&Array::from_elem(output.dim().1, Value::Empty))).unwrap(); 
+                }
+            }
+            if cols_append > 0 {
+                for _ in 0..cols_append {
+                    output.push(Axis(1), ArrayView::from(&Array::from_elem(output.dim().0, Value::Empty))).unwrap(); 
+                }
+            }
+            output
         } else {
             panic!("Can only resolve a reference expression.")
         }
@@ -455,11 +466,14 @@ impl SheetFlags {
 mod tests {
     use crate::workbook::{Sheet, Book};
     use crate::evaluate::value::Value;
+    use crate::parser::parse_str; 
+    use ndarray::arr2; 
 
     fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> &'a Value {
         let sheet: Sheet = book.get_sheet_by_name(sheet_name); 
         &book.cells.get(&sheet).unwrap()[[row, column]]
     }
+
 
     #[test]
     fn test_sheet_names() {
@@ -481,6 +495,28 @@ mod tests {
         assert_eq!(get_cell(&book, "test 1", 1, 4), &Value::Formula(String::from("=B2+1"))); 
         assert_eq!(get_cell(&book, "test 1", 2, 4), &Value::Formula(String::from("=B3+1"))); 
         assert_eq!(get_cell(&book, "test 1", 3, 4), &Value::Formula(String::from("=(B4+1)"))); 
+    }
+
+    #[test]
+    fn test_resolve_ref() {
+        let mut book = Book::from("assets/basic.xlsx"); 
+        book.load().expect("Could not load workbook"); 
+        book.calculate(); 
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!B2")), arr2(&[[Value::from(55.0)]])); 
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!A1:B2")), arr2(&
+            [[Value::Empty, Value::Empty], 
+            [Value::Empty, Value::from(55.0)]]
+        )); 
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!C5:D6")), arr2(&
+            [[Value::Empty, Value::Empty], 
+            [Value::Empty, Value::Empty]]
+        )); 
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!B:B")), arr2(&
+            [[Value::Empty], 
+            [Value::from(55.0)]]
+        )); 
+ 
+ 
     }
 }
 
