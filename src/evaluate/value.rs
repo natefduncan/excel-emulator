@@ -178,6 +178,12 @@ impl PartialOrd for Value {
     }
 }
 
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(&other).unwrap()
+    }
+}
+
 impl Add for Value {
     type Output = Self; 
     fn add(self, other: Self) -> Self {

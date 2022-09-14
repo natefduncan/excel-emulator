@@ -10,6 +10,8 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"CONCAT" => Box::new(Concat::from(args)).evaluate(),	
 		"AND" => Box::new(Andfunc::from(args)).evaluate(),	
 		"OR" => Box::new(Orfunc::from(args)).evaluate(),	
+		"MAX" => Box::new(Max::from(args)).evaluate(),	
+		"MIN" => Box::new(Min::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -101,6 +103,53 @@ fn orfunc(a: Value, b: Value) -> Value {
     Value::from(a.as_bool() || b.as_bool())
 }
 
+#[function]
+fn max(args: Vec<Value>) -> Value {
+    let mut output = args[0].clone(); 
+    for v in args.into_iter() {
+        if let Value::Array(arr) = v {
+            for x in arr {
+                if x.is_num() {
+                    output = output.max(x); 
+                }
+            }
+        } else if let Value::Array2(arr2) = v {
+            for x in arr2 {
+                if x.is_num() {
+                    output = output.max(x); 
+                }
+            }
+        } else {
+            output = output.max(v); 
+        }
+    }
+    output
+}
+
+#[function]
+fn min(args: Vec<Value>) -> Value {
+    let mut output = args[0].clone(); 
+    for v in args.into_iter() {
+        if let Value::Array(arr) = v {
+            for x in arr {
+                if x.is_num() {
+                    output = output.min(x); 
+                }
+            }
+        } else if let Value::Array2(arr2) = v {
+            for x in arr2 {
+                if x.is_num() {
+                    output = output.min(x); 
+                }
+            }
+        } else {
+            output = output.min(v); 
+        }
+    }
+    output
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::evaluate::evaluate_str;
@@ -143,6 +192,13 @@ mod tests {
     fn test_or() {
 		assert_eq!(evaluate_str("OR(TRUE, FALSE)"), Value::from(true));
     }
+
+    #[test]
+    fn test_max_min() {
+		assert_eq!(evaluate_str("MAX(1, 5, 10)"), Value::from(10.0));
+		assert_eq!(evaluate_str("MIN(1, 5, 10)"), Value::from(1.0));
+    }
+
 
 
 
