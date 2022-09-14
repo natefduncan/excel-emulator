@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_sheet() {
-        assert_eq!(lex(b"'Test'!"), vec![Token::Sheet(String::from("'Test'"))]); 
+        assert_eq!(lex(b"'Test'!"), vec![Token::Sheet(String::from("Test"))]); 
     }
 
     #[test]
