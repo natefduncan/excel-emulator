@@ -30,7 +30,7 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
         }
     });  
 
-    let field_declarations = fn_args.clone().into_iter().map(|fnarg| {
+    let field_declarations = fn_args.clone().into_iter().rev().map(|fnarg| {
         if let FnArg::Typed(pat_type) = fnarg {
             let arg_name = *pat_type.pat.clone(); 
             if let syn::Pat::Ident(pat_ident) = arg_name {

@@ -117,4 +117,8 @@ mod tests {
 		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")"), Value::from(7.0));
     }
  
+    #[test]
+    fn test_concat() {
+		assert_eq!(evaluate_str("CONCAT(\"test\", \"func\")"), Value::from("testfunc".to_string()));
+    }
 }
