@@ -177,9 +177,9 @@ impl Book {
                             let a = a.unwrap(); 
                             if let b"ref" = a.key {
                                 let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
-                                let (_row, _column, num_rows, num_cols) = Reference::from(dimension).get_dimensions(); 
+                                let (row, column, num_rows, num_cols) = Reference::from(dimension).get_dimensions(); 
                                 let sheet: Sheet = self.sheets.get(sheet_idx).unwrap().clone();
-                                self.cells.insert(sheet, Array::from_elem((num_rows, num_cols), Value::Empty)); 
+                                self.cells.insert(sheet, Array::from_elem((num_rows + row - 1, num_cols + column - 1), Value::Empty)); 
                             }
                         }
                     }, 

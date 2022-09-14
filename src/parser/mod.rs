@@ -374,4 +374,9 @@ mod tests {
                     )
                 ))); 
     }
+
+    #[test]
+    fn test_reference_formula() {
+        assert_eq!(parse_str("SUM(Sheet1!A1:A10)"), Expr::Func { name: "SUM".to_string(), args: vec![Expr::Reference { sheet: Some("Sheet1".to_string()), reference: "A1:A10".to_string() }] }); 
+    }
 }
