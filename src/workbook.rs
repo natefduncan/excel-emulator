@@ -336,14 +336,28 @@ impl Book {
 
     pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
         if let Expr::Reference {sheet, reference} = expr {
-            let (row, col, num_rows, num_cols) = Reference::from(reference).get_dimensions();
+            let (row, col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();
             let sheet: &Array2<Value> = match sheet {
                 Some(s) => self.cells.get(&self.get_sheet_by_name(&s)).unwrap(),
                 None => {
                     self.cells.get(&self.get_sheet_by_idx(self.current_sheet)).unwrap()
                 }
             };
-            sheet.slice(s![(row-1)..(row+num_rows-1), (col-1)..(col+num_cols-1)]).into_owned()
+            let row_idx: usize; 
+            if num_rows == usize::MAX {
+                row_idx = 0; 
+                num_rows = sheet.dim().0; 
+            } else {
+                row_idx = row - 1; 
+            }
+            let col_idx: usize;
+            if num_cols == usize::MAX {
+                col_idx = 0; 
+                num_cols = sheet.dim().1; 
+            } else {
+                col_idx = col - 1;
+            }
+            sheet.slice(s![row_idx..(row_idx + num_rows), col_idx..(col_idx + num_cols)]).into_owned()
         } else {
             panic!("Can only resolve a reference expression.")
         }
