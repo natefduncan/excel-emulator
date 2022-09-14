@@ -164,7 +164,7 @@ fn lex_hrange(input: &[u8]) -> IResult<&[u8], Token> {
 }
 
 fn in_quote_sheet_name(chr: u8) -> bool {
-    let is_special = b"`~@#$%^&-_=+{}|;,<.>()".contains(&chr); 
+    let is_special = b"`~@#$%^&-_=+{}|;,<.>() ".contains(&chr); 
     is_digit_or_alpha(chr) || is_special
 }
 
@@ -189,11 +189,12 @@ fn lex_sheet_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
 fn lex_sheet(input: &[u8]) -> IResult<&[u8], Token> {
     map_res(
         alt((
+            terminated(lex_sheet_name, tag("\\!")), // Workaround shell expansion of !. 
             terminated(lex_sheet_name, tag("!")), 
         )), 
         |s| {
             let c = complete_byte_slice_str_from_utf8(s);
-            c.map(|syntax| Token::Sheet(syntax.to_string()))
+            c.map(|syntax| Token::Sheet(syntax.replace("'", "").to_string()))
         }
     )(input)
 }
