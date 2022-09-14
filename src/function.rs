@@ -8,6 +8,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"COUNT" => Box::new(Count::from(args)).evaluate(),	
 		"EXPONENT" => Box::new(Exponent::from(args)).evaluate(),	
 		"CONCAT" => Box::new(Concat::from(args)).evaluate(),	
+		"AND" => Box::new(Andfunc::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -89,6 +90,11 @@ fn concat(a: Value, b: Value) -> Value {
     Value::from(format!("{}{}", a.as_text(), b.as_text()))
 }
 
+#[function]
+fn andfunc(a: Value, b: Value) -> Value {
+    Value::from(a.as_bool() && b.as_bool())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::evaluate::evaluate_str;
@@ -121,4 +127,10 @@ mod tests {
     fn test_concat() {
 		assert_eq!(evaluate_str("CONCAT(\"test\", \"func\")"), Value::from("testfunc".to_string()));
     }
+
+    #[test]
+    fn test_and() {
+		assert_eq!(evaluate_str("AND(TRUE, TRUE)"), Value::from(true));
+    }
+
 }
