@@ -12,6 +12,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"OR" => Box::new(Orfunc::from(args)).evaluate(),	
 		"MAX" => Box::new(Max::from(args)).evaluate(),	
 		"MIN" => Box::new(Min::from(args)).evaluate(),	
+		"MATCH" => Box::new(Matchfn::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -149,6 +150,32 @@ fn min(args: Vec<Value>) -> Value {
     output
 }
 
+#[function]
+fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value {
+    let mut lookup_array_mut = lookup_array.as_array();
+    if match_type.as_num() == -1.0 {
+        // Smallest value that is greater than or equal to the lookup-value.
+        // Lookup array placed in descending order.
+        lookup_array_mut.sort_by(|a, b| b.cmp(a)); // Descending Order
+        match lookup_array.as_array().into_iter().enumerate().filter(|(_,v)| v >= &lookup_value).last() {
+            Some(v) => { Value::from(v.0 + 1) },
+            _ => panic!("Match statement could not resolve.")
+        }
+    } else if match_type.as_num() == 0.0 {
+        match lookup_array_mut.into_iter().position(|v| v == lookup_value) {
+            Some(v) => { Value::from(v + 1) }, 
+            _ => panic!("Match statement could not resolve.")
+        }
+    } else {
+        // Largest value that is less than or equal to the lookup-value
+        // Lookup array placed in ascending order.
+        lookup_array_mut.sort(); // Ascending Order
+        match lookup_array_mut.into_iter().enumerate().filter(|(_, v)| v <= &lookup_value).last() {
+            Some(v) => { Value::from(v.0 + 1) }, 
+            _ => panic!("Match statement could not resolve.")
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -199,7 +226,8 @@ mod tests {
 		assert_eq!(evaluate_str("MIN(1, 5, 10)"), Value::from(1.0));
     }
 
-
-
-
+    #[test]
+    fn test_match() {
+		assert_eq!(evaluate_str("MATCH(3, {1,2,3,4,5}, 0)"), Value::from(3.0));
+    }
 }

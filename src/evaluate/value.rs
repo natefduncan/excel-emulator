@@ -27,6 +27,7 @@ pub enum Value {
 }
 
 impl From<f64> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
+impl From<usize> for Value { fn from(f: usize) -> Value { Value::Num(f as f64) }}
 impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
@@ -98,10 +99,10 @@ impl Value {
     }
 
     pub fn as_array(&self) -> ArrayType {
-        if let Value::Array(x) = self {
-            x.to_vec()
-        } else {
-            panic!("{} cannot be converted to an array.", self); 
+        match self {
+            Value::Array(arr) => arr.to_vec(),
+            Value::Array2(arr2) => arr2.clone().into_raw_vec(), 
+            _ => panic!("{} cannot be converted to an array.", self)
         }
     }
 }
