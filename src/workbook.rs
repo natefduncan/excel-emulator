@@ -334,6 +334,15 @@ impl Book {
         self.sheets[idx].clone()
     }
 
+    pub fn resolve_str_ref(&self, s: &str) -> Array2<Value> {
+        let expr: Expr = parse_str(s); 
+        if matches!(expr, Expr::Reference { sheet: _, reference: _}) {
+            self.resolve_ref(expr)
+        } else {
+            panic!("Could not resolve {} to a reference", s); 
+        }
+    }
+
     pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
         if let Expr::Reference {sheet, reference} = expr {
             let (mut row, mut col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();

@@ -13,6 +13,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"MAX" => Box::new(Max::from(args)).evaluate(),	
 		"MIN" => Box::new(Min::from(args)).evaluate(),	
 		"MATCH" => Box::new(Matchfn::from(args)).evaluate(),	
+		"INDEX" => Box::new(Index::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -177,10 +178,20 @@ fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value
     }
 }
 
+#[function]
+fn index(arr: Value, row_num: Value, col_num: Value) -> Value {
+    arr.as_array2()[[row_num.as_num() as usize - 1, col_num.as_num() as usize - 1]].clone()
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::evaluate::evaluate_str;
-    use crate::evaluate::value::Value; 
+    use crate::{
+        evaluate::{
+            value:: Value, 
+            evaluate_str 
+        },
+        workbook::Book
+    };
 
 	#[test]
     fn test_sum() {
@@ -230,4 +241,13 @@ mod tests {
     fn test_match() {
 		assert_eq!(evaluate_str("MATCH(3, {1,2,3,4,5}, 0)"), Value::from(3.0));
     }
+
+    #[test]
+    fn test_index() {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load().unwrap(); 
+        book.calculate(); 
+        assert_eq!(book.resolve_str_ref("Sheet1!H3")[[0,0]].as_num(), 11.0); 
+    }
+
 }

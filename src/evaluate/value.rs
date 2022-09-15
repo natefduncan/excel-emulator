@@ -105,6 +105,13 @@ impl Value {
             _ => panic!("{} cannot be converted to an array.", self)
         }
     }
+
+    pub fn as_array2(&self) -> Array2Type {
+        match self {
+            Value::Array2(arr2) => arr2.clone(), 
+            _ => panic!("{} cannot be converted to an array2.", self)
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -181,7 +188,7 @@ impl PartialOrd for Value {
 
 impl Ord for Value {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(&other).unwrap()
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -192,7 +199,7 @@ impl Add for Value {
                Value::Num(x) => Value::from(x + other.as_num()), 
                Value::Text(ref x) => Value::from(format!("{}{}", x, other.as_text())),
                Value::Bool(_) => Value::from(self.as_num() + other.as_num()), 
-               Value::Array2(arr2) => Value::from(arr2[[0,0]].clone() + other), // Assume single cell
+               Value::Array2(arr2) => arr2[[0,0]].clone() + other, // Assume single cell
                Value::Date(_) => {
                    if self.is_date() {
                        Value::from(self.as_date().checked_add_signed(Duration::days(other.as_num() as i64)).unwrap())
