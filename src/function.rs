@@ -1,5 +1,6 @@
 use crate::evaluate::value::Value; 
 use function_macro::function; 
+use chrono::naive::NaiveDate; 
 
 pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
     match name {
@@ -14,6 +15,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"MIN" => Box::new(Min::from(args)).evaluate(),	
 		"MATCH" => Box::new(Matchfn::from(args)).evaluate(),	
 		"INDEX" => Box::new(Index::from(args)).evaluate(),	
+		"DATE" => Box::new(Date::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -179,6 +181,11 @@ fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value
 }
 
 #[function]
+fn date(year: Value, month: Value, day: Value) -> Value {
+   Value::from(NaiveDate::from_ymd(year.as_num() as i32, month.as_num() as u32, day.as_num() as u32))
+}
+
+#[function]
 fn index(arr: Value, row_num: Value, col_num: Value) -> Value {
     arr.as_array2()[[row_num.as_num() as usize - 1, col_num.as_num() as usize - 1]].clone()
 }
@@ -192,6 +199,7 @@ mod tests {
         },
         workbook::Book
     };
+    use chrono::naive::NaiveDate; 
 
 	#[test]
     fn test_sum() {
@@ -248,6 +256,11 @@ mod tests {
         book.load().unwrap(); 
         book.calculate(); 
         assert_eq!(book.resolve_str_ref("Sheet1!H3")[[0,0]].as_num(), 11.0); 
+    }
+
+    #[test]
+    fn test_date() {
+		assert_eq!(evaluate_str("DATE(2022, 1, 1)"), Value::from(NaiveDate::from_ymd(2022, 1, 1)));
     }
 
 }
