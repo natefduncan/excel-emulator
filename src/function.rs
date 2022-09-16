@@ -16,6 +16,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"MATCH" => Box::new(Matchfn::from(args)).evaluate(),	
 		"INDEX" => Box::new(Index::from(args)).evaluate(),	
 		"DATE" => Box::new(Date::from(args)).evaluate(),	
+		"FLOOR" => Box::new(Floor::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -185,6 +186,13 @@ fn date(year: Value, month: Value, day: Value) -> Value {
    Value::from(NaiveDate::from_ymd(year.as_num() as i32, month.as_num() as u32, day.as_num() as u32))
 }
 
+
+#[function]
+// FIXME: significance
+fn floor(x: Value, _significance: Value) -> Value {
+    Value::from(math::round::floor(x.as_num(), 1))
+}
+
 #[function]
 fn index(arr: Value, row_num: Value, col_num: Value) -> Value {
     arr.as_array2()[[row_num.as_num() as usize - 1, col_num.as_num() as usize - 1]].clone()
@@ -263,4 +271,11 @@ mod tests {
 		assert_eq!(evaluate_str("DATE(2022, 1, 1)"), Value::from(NaiveDate::from_ymd(2022, 1, 1)));
     }
 
+    #[test]
+    fn test_floor() {
+        assert_eq!(evaluate_str("FLOOR(3.7, 1)"), Value::from(3.0)); 
+        // assert_eq!(evaluate_str("FLOOR(-2.5, -2)"), Value::from(-2.0)); 
+        // assert_eq!(evaluate_str("FLOOR(1.58, 0.01)"), Value::from(1.5)); 
+        // assert_eq!(evaluate_str("FLOOR(0.234, 0.01)"), Value::from(0.23)); 
+    }
 }
