@@ -17,6 +17,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"INDEX" => Box::new(Index::from(args)).evaluate(),	
 		"DATE" => Box::new(Date::from(args)).evaluate(),	
 		"FLOOR" => Box::new(Floor::from(args)).evaluate(),	
+		"IFERROR" => Box::new(Iferror::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -198,6 +199,15 @@ fn index(arr: Value, row_num: Value, col_num: Value) -> Value {
     arr.as_array2()[[row_num.as_num() as usize - 1, col_num.as_num() as usize - 1]].clone()
 }
 
+#[function]
+fn iferror(a: Value, b: Value) -> Value {
+    if a.is_err() {
+        b 
+    } else {
+        a
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -277,5 +287,10 @@ mod tests {
         // assert_eq!(evaluate_str("FLOOR(-2.5, -2)"), Value::from(-2.0)); 
         // assert_eq!(evaluate_str("FLOOR(1.58, 0.01)"), Value::from(1.5)); 
         // assert_eq!(evaluate_str("FLOOR(0.234, 0.01)"), Value::from(0.23)); 
+    }
+
+    #[test]
+    fn test_iferror() {
+        assert_eq!(evaluate_str("IFERROR(#VALUE!, 1)"), Value::from(1.0)); 
     }
 }

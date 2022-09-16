@@ -55,6 +55,7 @@ pub fn evaluate_expr(expr: Expr) -> Value {
 			}
 		}, 
 		Expr::Array(x) => Value::Array(x.into_iter().map(evaluate_expr).collect::<Vec<Value>>()), 
+        Expr::Error(err) => Value::Error(err), 
 		_ => panic!("Expression {:?} does not convert to a value.", expr)  
 	}
 }
