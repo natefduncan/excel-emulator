@@ -5,6 +5,7 @@ use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};
 use ndarray::Array2; 
 
 use crate::reference::Reference;
+use crate::parser::ast::Error; 
 
 type NumType = f64;
 type BoolType = bool;
@@ -12,6 +13,7 @@ type TextType = String;
 type ArrayType = Vec<Value>;
 type Array2Type = Array2<Value>;
 type DateType = NaiveDate; 
+type ErrorType = Error; 
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Value { 
@@ -22,6 +24,7 @@ pub enum Value {
     Array(ArrayType), 
     Array2(Array2Type), 
     Formula(TextType), 
+    Error(ErrorType), 
     Ref { sheet: Option<String>, reference: Reference }, 
     Empty
 }
@@ -45,6 +48,7 @@ impl Value {
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
     pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
     pub fn is_ref(&self) -> bool { matches!(self, Value::Ref {sheet: _, reference: _}) }
+    pub fn is_err(&self) -> bool { matches!(self, Value::Error(_)) }
 
     pub fn as_num(&self) -> NumType {
         match self {
@@ -112,6 +116,14 @@ impl Value {
             _ => panic!("{} cannot be converted to an array2.", self)
         }
     }
+
+    pub fn as_err(&self) -> ErrorType {
+        if let Value::Error(err) = self {
+            return err.clone()
+        } else {
+            panic!("{} cannot be converted to an error.", self)
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -133,7 +145,8 @@ impl fmt::Display for Value {
                     None => write!(f, "{}", reference)
                 }
             }, 
-            Value::Array2(arr2) => write!(f, "{}", arr2)
+            Value::Array2(arr2) => write!(f, "{}", arr2), 
+            Value::Error(err) => write!(f, "{}", err)
         }
     }
 }
