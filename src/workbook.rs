@@ -16,7 +16,8 @@ use ndarray::{Array2, Array, s, Axis, ArrayView};
 use crate::{
     evaluate::{
         value::Value, 
-        evaluate_expr_with_context
+        evaluate_expr_with_context, 
+        offset_expr
     }, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
@@ -383,7 +384,25 @@ impl Book {
         }
     }
 
+    pub fn expand_offsets(&mut self) {
+        let offsets = self.dependencies.offsets.clone(); 
+        for v in offsets.iter() {
+            let sheet: Sheet = self.get_sheet_by_idx(v.sheet); 
+            let value: &Value = &self.cells.get(&sheet).unwrap()[[v.row-1, v.column-1]];
+            let formula_text = value.as_text(); 
+            let mut chars = formula_text.chars(); 
+            chars.next(); 
+            if let Expr::Func { name: _, args } = parse_str(chars.as_str()) {
+                let new_expr: Expr = offset_expr(args, self);
+                self.dependencies.add_expression(*v, new_expr, &self.sheets); 
+            } else {
+                panic!("Function did not return a formula")
+            }
+       }
+    }
+
     pub fn calculate(&mut self) {
+        self.expand_offsets(); 
         for cell_id in self.dependencies.get_order().iter() {
             let sheet: &Sheet = &self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &self.cells.get(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]]; 

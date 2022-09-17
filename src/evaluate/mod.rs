@@ -11,6 +11,7 @@ use crate::workbook::Book;
 
 pub mod value; 
 use crate::evaluate::value::Value; 
+use crate::reference::Reference; 
 
 pub fn evaluate_str(s: &str) -> Value {
     let (_, t) = Lexer::lex_tokens(s.as_bytes()).unwrap();
@@ -24,8 +25,8 @@ pub fn evaluate_expr(expr: Expr) -> Value {
         Expr::Func {name, args} => {
             let arg_values: Vec<Value> = args.into_iter().map(evaluate_expr).collect::<Vec<Value>>(); 
             get_function_value(&name, arg_values)
-        },
-		Expr::Literal(lit) => {
+        }, 
+        Expr::Literal(lit) => {
 			match lit {
 				Literal::Number(f) => Value::from(f), 
 				Literal::Boolean(b) => Value::from(b), 
@@ -60,14 +61,46 @@ pub fn evaluate_expr(expr: Expr) -> Value {
 	}
 }
 
+pub fn offset_expr(args: Vec<Expr>, book: &Book) -> Expr {
+    if let Expr::Reference { sheet, reference } = args.get(0).unwrap() { 
+        let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book);
+        let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book); 
+        let height = args.get(3); 
+        let height_opt: Option<usize>; 
+        if height.is_some() {
+            height_opt = Some(evaluate_expr_with_context(height.unwrap().clone(), book).as_num() as usize); 
+        } else {
+            height_opt = None; 
+        }
+        let width = args.get(4); 
+        let width_opt: Option<usize>; 
+        if width.is_some() {
+            width_opt = Some(evaluate_expr_with_context(width.unwrap().clone(), book).as_num() as usize); 
+        } else {
+            width_opt = None; 
+        }
+        let new_reference = offset(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
+        Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }
+    } else {
+        panic!("Offset must have a reference.")
+    }
+}
+
 pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Value {
     match expr {
         Expr::Reference { sheet: _, reference: _ } => {
             Value::from(book.resolve_ref(expr.clone()))
 		}, 
         Expr::Func {name, args} => {
-            let arg_values: Vec<Value> = args.into_iter().map(|x| evaluate_expr_with_context(x, book)).collect::<Vec<Value>>(); 
-            get_function_value(&name, arg_values)
+            match name.as_str() {
+                "OFFSET" => {
+                    evaluate_expr_with_context(offset_expr(args, book), book)
+                }, 
+                c => {
+                    let arg_values: Vec<Value> = args.into_iter().map(|x| evaluate_expr_with_context(x, book)).collect::<Vec<Value>>(); 
+                    get_function_value(c, arg_values)
+                }
+            }
         },
 		Expr::Literal(lit) => {
 			match lit {

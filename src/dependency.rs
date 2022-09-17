@@ -10,6 +10,8 @@ use crate::{
         parse_str, 
         ast::Expr
     }, 
+    evaluate::{value::Value, offset_expr}, 
+    workbook::Book, 
     reference::Reference, 
 }; 
 
@@ -54,6 +56,7 @@ impl fmt::Display for CellId {
 
 pub struct DependencyTree {
     tree: DiGraphMap<CellId, u8>, 
+    pub offsets: Vec<CellId>
 }
 
 /*
@@ -70,7 +73,7 @@ impl Default for DependencyTree {
 
 impl DependencyTree {
     pub fn new() -> DependencyTree {
-        DependencyTree { tree: DiGraphMap::new() }
+        DependencyTree { tree: DiGraphMap::new(), offsets: vec![] }
     }
 
     pub fn add_formula(&mut self, cell: CellId, formula_text: &str, sheets: &Vec<Sheet>) {
@@ -104,7 +107,11 @@ impl DependencyTree {
             Expr::Prefix(_, a) => {
                 self.add_expression(cell, *a, sheets); 
             }, 
-            Expr::Func { name: _, args } => {
+            Expr::Func { name, args } => {
+                match name.as_str() {
+                    "OFFSET" => self.offsets.push(cell.clone()), 
+                    _ => {}
+                }
                 for arg in args.into_iter() {
                     self.add_expression(cell, arg, sheets); 
                 }

@@ -1,8 +1,14 @@
 pub mod xirr; 
 
 use crate::evaluate::value::Value; 
+use crate::reference::Reference;
+use crate::cell::{Cell, CellIndex};
+use crate::workbook::Book; 
+use crate::parser::ast::Expr; 
+use crate::evaluate::evaluate_expr_with_context; 
 use function_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
+use crate::parser::ast::Error; 
 
 pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
     match name {
@@ -29,6 +35,29 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 
 pub trait Function {
    fn evaluate(self) -> Value; 
+}
+
+pub fn offset(r: &mut Reference, rows: i32, cols: i32, height: Option<usize>, width: Option<usize>) -> Reference {
+    if r.row() as i32 + rows < 0 || r.column() as i32 + cols < 0 {
+        panic!("Invalid offset");
+    } else {
+        r.offset((rows, cols));
+    }
+    let mut end_cell : Option<Cell> = None;  
+    if height.is_some() || width.is_some() {
+        let h_u : usize = height.unwrap_or(0); 
+        let w_u : usize = width.unwrap_or(0); 
+        if h_u > 1 || w_u > 1 {
+            end_cell = Some(
+                Cell::from((
+                    r.row() + h_u, 
+                    r.column() + w_u
+                ))
+            ); 
+        }
+    }
+    r.end_cell = end_cell; 
+    r.clone()
 }
 
 #[function]
@@ -379,4 +408,13 @@ mod tests {
         book.calculate(); 
         assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")[[0,0]].as_num()).abs() < 0.01); 
     }
+
+    #[test]
+    fn test_offset() {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load().unwrap(); 
+        book.calculate(); 
+        assert_eq!(book.resolve_str_ref("Sheet1!H6")[[0,0]].as_num(), 10.0); 
+    }
 }
+
