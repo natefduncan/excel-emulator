@@ -19,6 +19,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"FLOOR" => Box::new(Floor::from(args)).evaluate(),	
 		"IFERROR" => Box::new(Iferror::from(args)).evaluate(),	
 		"EOMONTH" => Box::new(Eomonth::from(args)).evaluate(),	
+		"SUMIFS" => Box::new(Sumifs::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -224,6 +225,34 @@ fn eomonth(start_date: Value, months: Value) -> Value {
     Value::from(eom.pred())
 }
 
+#[function]
+// TODO: Beef up criteria support
+fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
+    let mut keep_index: Vec<usize> = vec![]; 
+    for i in (0..args.len()).step_by(2) {
+        let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
+        let criteria: &Value = args.get(i+1).unwrap(); 
+        for (i, cell) in cell_range.into_iter().enumerate() {
+            if &cell == criteria {
+                if !keep_index.contains(&i) {
+                    keep_index.push(i); 
+                } 
+            }
+        }
+    } 
+    Value::from(sum_range.as_array()
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, v)| match keep_index.contains(&i) {
+            true => Some(v.as_num()), 
+            false => None
+        }) 
+        .collect::<Vec<f64>>()
+        .iter()
+        .sum::<f64>()) 
+} 
+
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -316,5 +345,13 @@ mod tests {
         assert_eq!(evaluate_str("EOMONTH(DATE(2004, 2, 28), 12)"), Value::from(NaiveDate::from_ymd(2005, 2, 28))); 
         assert_eq!(evaluate_str("EOMONTH(DATE(2004, 1, 15), -23)"), Value::from(NaiveDate::from_ymd(2002, 2, 28))); 
         assert_eq!(evaluate_str("EOMONTH(DATE(2004, 1, 15), 0)"), Value::from(NaiveDate::from_ymd(2004, 1, 31))); 
+    }
+
+    #[test]
+    fn test_sumifs() {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load().unwrap(); 
+        book.calculate(); 
+        assert_eq!(book.resolve_str_ref("Sheet1!H5")[[0,0]].as_num(), 2.0); 
     }
 }
