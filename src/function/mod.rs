@@ -1,3 +1,5 @@
+pub mod xirr; 
+
 use crate::evaluate::value::Value; 
 use function_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
@@ -20,6 +22,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"IFERROR" => Box::new(Iferror::from(args)).evaluate(),	
 		"EOMONTH" => Box::new(Eomonth::from(args)).evaluate(),	
 		"SUMIFS" => Box::new(Sumifs::from(args)).evaluate(),	
+		"XIRR" => Box::new(Xirrfunc::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -252,6 +255,20 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         .sum::<f64>()) 
 } 
 
+#[function]
+fn xirrfunc(values: Value, dates: Value) -> Value {
+    let payments: Vec<xirr::Payment> = values
+        .as_array()
+        .iter()
+        .zip(
+            dates
+            .as_array()
+            .iter()
+        ).map(|(v, d)| xirr::Payment { amount: v.as_num(), date: d.as_date() })
+        .collect(); 
+    Value::from(xirr::compute(&payments).unwrap())
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -353,5 +370,13 @@ mod tests {
         book.load().unwrap(); 
         book.calculate(); 
         assert_eq!(book.resolve_str_ref("Sheet1!H5")[[0,0]].as_num(), 2.0); 
+    }
+
+    #[test]
+    fn test_xirr() {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load().unwrap(); 
+        book.calculate(); 
+        assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")[[0,0]].as_num()).abs() < 0.01); 
     }
 }

@@ -95,10 +95,12 @@ impl Value {
    }
 
     pub fn as_date(&self) -> DateType {
-        if let Value::Date(x) = self {
-            *x
-        } else {
-            panic!("{} cannot be converted to a date.", self); 
+        match self { 
+            Value::Date(x) => x.clone(),
+            Value::Array2(arr2) => {
+                arr2[[0,0]].as_date()
+            }, 
+            _ => panic!("{} cannot be converted to a date.", self)
         }
     }
 
