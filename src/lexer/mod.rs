@@ -169,7 +169,7 @@ fn in_quote_sheet_name(chr: u8) -> bool {
 }
 
 fn in_sheet_name(chr: u8) -> bool {
-    let is_special = b"`~@#$%^&-_=+{}|;,<.>".contains(&chr); 
+    let is_special = b"`~@#$%^_{}|;<.>".contains(&chr); 
     is_digit_or_alpha(chr) || is_special
 }
 
