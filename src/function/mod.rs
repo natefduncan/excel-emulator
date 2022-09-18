@@ -225,7 +225,7 @@ fn date(year: Value, month: Value, day: Value) -> Value {
 #[function]
 // FIXME: significance
 fn floor(x: Value, _significance: Value) -> Value {
-    Value::from(math::round::floor(x.as_num(), 1))
+    Value::from(math::round::floor(x.as_num(), 0))
 }
 
 #[function]
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_floor() {
-        // assert_eq!(evaluate_str("FLOOR(3.7, 1)"), Value::from(3.0)); 
+        assert_eq!(evaluate_str("FLOOR(3.7, 1)"), Value::from(3.0)); 
         // assert_eq!(evaluate_str("FLOOR(-2.5, -2)"), Value::from(-2.0)); 
         // assert_eq!(evaluate_str("FLOOR(1.58, 0.01)"), Value::from(1.5)); 
         // assert_eq!(evaluate_str("FLOOR(0.234, 0.01)"), Value::from(0.23)); 

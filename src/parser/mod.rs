@@ -47,12 +47,12 @@ fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
     } else {
         match t1.tok[0].clone() {
             Token::Integer(_) => {
-                let (_, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
+                let (i2, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
 				let mut res = String::new(); 
                 for t in t2.tok.iter() {
 					res = format!("{}{}", res, t);
                 }
-                Ok((i1, Literal::Number(res.parse::<f64>().unwrap())))
+                Ok((i2, Literal::Number(res.parse::<f64>().unwrap())))
             },
             Token::Text(s) => Ok((i1, Literal::Text(s))),
             Token::Boolean(b) => Ok((i1, Literal::Boolean(b))),
@@ -100,7 +100,9 @@ fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
 fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
     map(
         pair(parse, many0(parse_comma_exprs)),
-        |(first, second)| [&vec![first][..], &second[..]].concat(),
+        |(first, second)| {
+            [&vec![first][..], &second[..]].concat()
+        }
     )(input)
 }
 
@@ -257,7 +259,7 @@ pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
         parse_infix, 
         parse_prefix,
         parse_block, 
-        parse_expr
+        parse_expr, 
     ))(input)
 }
 
@@ -276,9 +278,7 @@ mod tests {
     use crate::lexer::token::Tokens; 
 
     fn parse_str(s: &str) -> Expr {
-        let (remain, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
-        println!("remain: {:?}", remain); 
-        println!("tokens: {:?}", t); 
+        let (_remain, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
         let tokens = Tokens::new(&t); 
         let (_, expr) = parse(tokens).unwrap(); 
         expr
@@ -287,7 +287,9 @@ mod tests {
     #[test]
     fn test_literal() {
         assert_eq!(parse_str("123"), Expr::from(123.0)); 
+        assert_eq!(parse_str("1"), Expr::from(1.0)); 
         assert_eq!(parse_str("123.12"), Expr::from(123.12)); 
+        assert_eq!(parse_str("123.123"), Expr::from(123.123)); 
         assert_eq!(parse_str("\"Test\""), Expr::from("Test")); 
         assert_eq!(parse_str("TRUE"), Expr::from(true)); 
     }
@@ -378,5 +380,16 @@ mod tests {
     #[test]
     fn test_reference_formula() {
         assert_eq!(parse_str("SUM(Sheet1!A1:A10)"), Expr::Func { name: "SUM".to_string(), args: vec![Expr::Reference { sheet: Some("Sheet1".to_string()), reference: "A1:A10".to_string() }] }); 
+    }
+
+    #[test]
+    fn test_floor() {
+        assert_eq!(parse_str("FLOOR(3.7, 1)"), Expr::Func {
+            name: "FLOOR".to_string(),
+            args: vec![
+                Expr::from(3.7), 
+                Expr::from(1.0)
+            ]
+        }); 
     }
 }
