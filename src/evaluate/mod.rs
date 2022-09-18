@@ -1,17 +1,19 @@
-use crate::parser::{
-    ast::{Literal, Prefix, Infix, Expr}, 
-    parse
+use crate::{
+    parser::{
+        ast::{Literal, Prefix, Infix, Expr}, 
+        parse
+    }, 
+    function::*, 
+    lexer::{
+        token::Tokens, 
+        Lexer
+    }, 
+    workbook::Book, 
+    evaluate::value::Value, 
+    reference::Reference
 }; 
-use crate::function::*; 
-use crate::lexer::{
-    token::Tokens, 
-    Lexer, 
-}; 
-use crate::workbook::Book; 
 
 pub mod value; 
-use crate::evaluate::value::Value; 
-use crate::reference::Reference; 
 
 pub fn evaluate_str(s: &str) -> Value {
     let (_, t) = Lexer::lex_tokens(s.as_bytes()).unwrap();
@@ -66,19 +68,13 @@ pub fn offset_expr(args: Vec<Expr>, book: &Book) -> Expr {
         let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book);
         let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book); 
         let height = args.get(3); 
-        let height_opt: Option<usize>; 
-        if height.is_some() {
-            height_opt = Some(evaluate_expr_with_context(height.unwrap().clone(), book).as_num() as usize); 
-        } else {
-            height_opt = None; 
-        }
+        let height_opt: Option<usize> = height.map(|h| {
+            evaluate_expr_with_context(h.clone(), book).as_num() as usize
+        }); 
         let width = args.get(4); 
-        let width_opt: Option<usize>; 
-        if width.is_some() {
-            width_opt = Some(evaluate_expr_with_context(width.unwrap().clone(), book).as_num() as usize); 
-        } else {
-            width_opt = None; 
-        }
+        let width_opt: Option<usize> = width.map(|w| {
+            evaluate_expr_with_context(w.clone(), book).as_num() as usize
+        }); 
         let new_reference = offset(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }
     } else {

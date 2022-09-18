@@ -10,8 +10,6 @@ use crate::{
         parse_str, 
         ast::Expr
     }, 
-    evaluate::{value::Value, offset_expr}, 
-    workbook::Book, 
     reference::Reference, 
 }; 
 
@@ -108,9 +106,8 @@ impl DependencyTree {
                 self.add_expression(cell, *a, sheets); 
             }, 
             Expr::Func { name, args } => {
-                match name.as_str() {
-                    "OFFSET" => self.offsets.push(cell.clone()), 
-                    _ => {}
+                if name.as_str() == "OFFSET" {
+                    self.offsets.push(cell); 
                 }
                 for arg in args.into_iter() {
                     self.add_expression(cell, arg, sheets); 

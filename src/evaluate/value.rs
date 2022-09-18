@@ -96,7 +96,7 @@ impl Value {
 
     pub fn as_date(&self) -> DateType {
         match self { 
-            Value::Date(x) => x.clone(),
+            Value::Date(x) => *x,
             Value::Array2(arr2) => {
                 arr2[[0,0]].as_date()
             }, 
@@ -121,7 +121,7 @@ impl Value {
 
     pub fn as_err(&self) -> ErrorType {
         if let Value::Error(err) = self {
-            return err.clone()
+            err.clone()
         } else {
             panic!("{} cannot be converted to an error.", self)
         }

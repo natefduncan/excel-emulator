@@ -1,14 +1,14 @@
 pub mod xirr; 
 
-use crate::evaluate::value::Value; 
-use crate::reference::Reference;
-use crate::cell::{Cell, CellIndex};
-use crate::workbook::Book; 
-use crate::parser::ast::Expr; 
-use crate::evaluate::evaluate_expr_with_context; 
+use crate::{
+    evaluate::{
+        value::Value, 
+    }, 
+    reference::Reference, 
+    cell::Cell, 
+}; 
 use function_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
-use crate::parser::ast::Error; 
 
 pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
     match name {
@@ -57,7 +57,7 @@ pub fn offset(r: &mut Reference, rows: i32, cols: i32, height: Option<usize>, wi
         }
     }
     r.end_cell = end_cell; 
-    r.clone()
+    *r
 }
 
 #[function]
@@ -265,10 +265,8 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
         let criteria: &Value = args.get(i+1).unwrap(); 
         for (i, cell) in cell_range.into_iter().enumerate() {
-            if &cell == criteria {
-                if !keep_index.contains(&i) {
-                    keep_index.push(i); 
-                } 
+            if &cell == criteria && !keep_index.contains(&i) {
+                keep_index.push(i); 
             }
         }
     } 
