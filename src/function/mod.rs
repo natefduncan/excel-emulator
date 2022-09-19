@@ -33,6 +33,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"XNPV" => Box::new(Xnpv::from(args)).evaluate(),	
 		"YEARFRAC" => Box::new(Yearfrac::from(args)).evaluate(),	
 		"DATEDIF" => Box::new(Datedif::from(args)).evaluate(),	
+		"PMT" => Box::new(Pmt::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -356,6 +357,18 @@ fn datedif(start_date: Value, end_date: Value, unit: Value) -> Value {
     }
 }
 
+#[function]
+fn pmt(rate: Value, nper: Value, pv: Value, fv: Option<Value>, f_type: Option<Value>) -> Value {
+    let rate = rate.as_num();
+    let nper = nper.as_num();
+    let pv = pv.as_num();
+    let fv = fv.unwrap_or(Value::from(0.0)).as_num(); 
+    let f_type = f_type.unwrap_or(Value::from(0.0)).as_num();
+    Value::from(
+        rate*(fv*-1.0+pv*(1.0+rate).powf(nper))/((1.0+rate*f_type)*(1.0-(1.0+rate).powf(nper)))
+    )
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -367,6 +380,12 @@ mod tests {
         workbook::Book
     };
     use chrono::naive::NaiveDate; 
+
+    #[test]
+    fn test_pmt() {
+        assert!((-1037.03 - evaluate_str("PMT(0.08/12, 10, 10000)").as_num()).abs() < 0.01); 
+        assert!((-1030.16 - evaluate_str("PMT(0.08/12, 10, 10000, 0, 1)").as_num()).abs() < 0.01); 
+    }
 
     #[test]
     fn test_datedif() {

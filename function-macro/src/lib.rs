@@ -33,12 +33,24 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
     let field_declarations = fn_args.clone().into_iter().map(|fnarg| {
         if let FnArg::Typed(pat_type) = fnarg {
             let arg_name = *pat_type.pat.clone(); 
+            let is_optional: bool = match &*pat_type.ty {
+                syn::Type::Path(typepath) => typepath.path.segments.len() == 1 && typepath.path.segments[0].ident.to_string().as_str() == "Option",
+                _ => false
+            }; 
             if let syn::Pat::Ident(pat_ident) = arg_name {
-                if pat_ident.ident.to_string() == "args" {
+               if pat_ident.ident.to_string() == "args" {
                     quote! {
                         let args = v; 
                     }
-                } else {
+                } else if is_optional {
+                    quote! {
+                        let #fnarg = if v.len() > 0 {
+                            Some(v.remove(0))
+                        } else {
+                            None
+                        }; 
+                    }
+				} else {
                     quote! {
                         let #fnarg = Value::from(v.remove(0)); 
                     }
