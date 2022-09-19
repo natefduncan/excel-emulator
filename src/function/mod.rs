@@ -34,6 +34,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"YEARFRAC" => Box::new(Yearfrac::from(args)).evaluate(),	
 		"DATEDIF" => Box::new(Datedif::from(args)).evaluate(),	
 		"PMT" => Box::new(Pmt::from(args)).evaluate(),	
+		"COUNTA" => Box::new(Counta::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -369,6 +370,29 @@ fn pmt(rate: Value, nper: Value, pv: Value, fv: Option<Value>, f_type: Option<Va
     )
 }
 
+#[function]
+fn counta(args: Vec<Value>) -> Value {
+    Value::from(
+        args.into_iter().fold(0, |s, v| {
+            match v {
+                Value::Array(arr) => {
+                    s + arr.into_iter().fold(0, |s, v| match v {
+                        Value::Empty => s + 0, 
+                            _ => s + 1
+                    })
+                },
+                Value::Array2(arr2) => {
+                    s + arr2.into_raw_vec().into_iter().fold(0, |s, v| match v {
+                        Value::Empty => s + 0, 
+                        _ => s + 1
+                    })
+                }, 
+                _ => s + 1
+            }
+        })
+    )
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -380,6 +404,13 @@ mod tests {
         workbook::Book
     };
     use chrono::naive::NaiveDate; 
+
+    #[test]
+    fn test_counta() {
+        assert_eq!(evaluate_str("COUNTA(1,2,3,4,5)"), Value::from(5.0)); 
+        assert_eq!(evaluate_str("COUNTA({1,2,3,4,5})"), Value::from(5.0)); 
+        assert_eq!(evaluate_str("COUNTA({1,2,3,4,5},6,\"7\")"), Value::from(7.0)); 
+    }
 
     #[test]
     fn test_pmt() {
