@@ -29,6 +29,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"EOMONTH" => Box::new(Eomonth::from(args)).evaluate(),	
 		"SUMIFS" => Box::new(Sumifs::from(args)).evaluate(),	
 		"XIRR" => Box::new(Xirrfunc::from(args)).evaluate(),	
+		"IF" => Box::new(Iffunc::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -296,6 +297,15 @@ fn xirrfunc(values: Value, dates: Value) -> Value {
     Value::from(xirr::compute(&payments).unwrap())
 }
 
+#[function]
+fn iffunc(condition: Value, a: Value, b: Value) -> Value {
+    if condition.as_bool() {
+        a
+    } else {
+        b
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -413,6 +423,12 @@ mod tests {
         book.load().unwrap(); 
         book.calculate(); 
         assert_eq!(book.resolve_str_ref("Sheet1!H6")[[0,0]].as_num(), 10.0); 
+    }
+    
+    #[test]
+    fn test_if() {
+        assert_eq!(evaluate_str("IF(TRUE, 1, 2)"), Value::from(1.0)); 
+        assert_eq!(evaluate_str("IF(FALSE, 1, 2)"), Value::from(2.0)); 
     }
 }
 
