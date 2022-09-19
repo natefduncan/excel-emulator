@@ -11,6 +11,7 @@ use crate::{
         ast::Expr
     }, 
     reference::Reference, 
+    errors::Error,
 }; 
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
@@ -74,14 +75,15 @@ impl DependencyTree {
         DependencyTree { tree: DiGraphMap::new(), offsets: vec![] }
     }
 
-    pub fn add_formula(&mut self, cell: CellId, formula_text: &str, sheets: &Vec<Sheet>) {
+    pub fn add_formula(&mut self, cell: CellId, formula_text: &str, sheets: &Vec<Sheet>) -> Result<(), Error> {
         let mut chars = formula_text.chars();
         chars.next(); // FIXME: Parse can't handle the = in the front of a formula
-        let expression: Expr = parse_str(chars.as_str());
-        self.add_expression(cell, expression, sheets); 
+        let expression: Expr = parse_str(chars.as_str())?;
+        self.add_expression(cell, expression, sheets)?; 
+        Ok(())
     }
 
-    pub fn add_expression(&mut self, cell: CellId, expression: Expr, sheets: &Vec<Sheet>) {
+    pub fn add_expression(&mut self, cell: CellId, expression: Expr, sheets: &Vec<Sheet>) -> Result<(), Error> {
         match expression {
             Expr::Reference { sheet, reference } => {
                 let sheet_id = match sheet {
@@ -99,27 +101,29 @@ impl DependencyTree {
                 }
             },
             Expr::Infix(_, a, b) => {
-                self.add_expression(cell, *a, sheets); 
-                self.add_expression(cell, *b, sheets); 
+                self.add_expression(cell, *a, sheets)?; 
+                self.add_expression(cell, *b, sheets)?; 
             }, 
             Expr::Prefix(_, a) => {
-                self.add_expression(cell, *a, sheets); 
+                self.add_expression(cell, *a, sheets)?; 
             }, 
             Expr::Func { name, args } => {
                 if name.as_str() == "OFFSET" {
                     self.offsets.push(cell); 
                 }
                 for arg in args.into_iter() {
-                    self.add_expression(cell, arg, sheets); 
+                    self.add_expression(cell, arg, sheets)?; 
                 }
             }, 
             Expr::Array(arr) => {
                 for a in arr.into_iter() {
-                    self.add_expression(cell, a, sheets); 
+                    self.add_expression(cell, a, sheets)?; 
                 }
             }, 
             _ => {}
+            
         }
+        Ok(())
     }
 
     pub fn add_cell(&mut self, cell: CellId) {

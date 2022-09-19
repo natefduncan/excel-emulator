@@ -9,12 +9,14 @@ use nom::error::{Error as NomError, ErrorKind};
 
 pub mod ast; 
 
-use crate::lexer::{
-    Lexer,
-    token::{Token, Tokens}
+use crate::{
+    lexer::{
+        Lexer,
+        token::{Token, Tokens}, 
+    }, 
+    parser::ast::{Expr, Error as ExcelError, Literal, Prefix, Infix}, 
+    errors::Error
 }; 
-use crate::parser::ast::*; 
-
 
 macro_rules! tag_token (
 	($func_name:ident, $tag: expr) => (
@@ -59,20 +61,20 @@ fn parse_literal_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_literal, Expr::Literal)(input)
 }
 
-fn parse_error(input: Tokens) -> IResult<Tokens, Error> {
+fn parse_error(input: Tokens) -> IResult<Tokens, ExcelError> {
     let (i1, t1) = take(1usize)(input)?;
 	if t1.tok.is_empty() {
         Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
     } else {
         match t1.tok[0].clone() {
-            Token::Null => Ok((i1, Error::Null)), 
-            Token::Div => Ok((i1, Error::Div)), 
-            Token::Value => Ok((i1, Error::Value)), 
-            Token::Ref => Ok((i1, Error::Ref)), 
-            Token::Name => Ok((i1, Error::Name)), 
-            Token::Num => Ok((i1, Error::Num)), 
-            Token::NA => Ok((i1, Error::NA)), 
-            Token::GettingData => Ok((i1, Error::GettingData)), 
+            Token::Null => Ok((i1, ExcelError::Null)), 
+            Token::Div => Ok((i1, ExcelError::Div)), 
+            Token::Value => Ok((i1, ExcelError::Value)), 
+            Token::Ref => Ok((i1, ExcelError::Ref)), 
+            Token::Name => Ok((i1, ExcelError::Name)), 
+            Token::Num => Ok((i1, ExcelError::Num)), 
+            Token::NA => Ok((i1, ExcelError::NA)), 
+            Token::GettingData => Ok((i1, ExcelError::GettingData)), 
             _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
         }
     }
@@ -257,64 +259,62 @@ pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
     ))(input)
 }
 
-pub fn parse_str(s: &str) -> Expr {
-    let (_, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
+pub fn parse_str(s: &str) -> Result<Expr, Error> {
+    let t = Lexer::lex_tokens(s.as_bytes())?; 
     let tokens = Tokens::new(&t); 
-    let (_, expr) = parse(tokens).unwrap(); 
-    expr
+    match parse(tokens) {
+        Ok((_, expr)) => Ok(expr),
+        _ => Err(Error::UnableToParse(s.to_owned()))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse; 
-    use crate::parser::ast::{Expr, Error, Prefix, Infix}; 
-    use crate::lexer::Lexer; 
-    use crate::lexer::token::Tokens; 
+    use crate::parser::parse_str; 
+    use crate::parser::ast::{Expr, Error as ExcelError, Prefix, Infix}; 
+    use crate::errors::Error; 
 
-    fn parse_str(s: &str) -> Expr {
-        let (_remain, t) = Lexer::lex_tokens(s.as_bytes()).unwrap(); 
-        let tokens = Tokens::new(&t); 
-        let (_, expr) = parse(tokens).unwrap(); 
-        expr
+    #[test]
+    fn test_literal() -> Result<(), Error> {
+        assert_eq!(parse_str("123")?, Expr::from(123.0)); 
+        assert_eq!(parse_str("1")?, Expr::from(1.0)); 
+        assert_eq!(parse_str("123.12")?, Expr::from(123.12)); 
+        assert_eq!(parse_str("123.123")?, Expr::from(123.123)); 
+        assert_eq!(parse_str("\"Test\"")?, Expr::from("Test")); 
+        assert_eq!(parse_str("TRUE")?, Expr::from(true)); 
+        Ok(())
     }
 
     #[test]
-    fn test_literal() {
-        assert_eq!(parse_str("123"), Expr::from(123.0)); 
-        assert_eq!(parse_str("1"), Expr::from(1.0)); 
-        assert_eq!(parse_str("123.12"), Expr::from(123.12)); 
-        assert_eq!(parse_str("123.123"), Expr::from(123.123)); 
-        assert_eq!(parse_str("\"Test\""), Expr::from("Test")); 
-        assert_eq!(parse_str("TRUE"), Expr::from(true)); 
+    fn test_errors() -> Result<(), Error> {
+        assert_eq!(parse_str("#NULL!")?, Expr::Error(ExcelError::Null)); 
+        assert_eq!(parse_str("#DIV/0!")?, Expr::Error(ExcelError::Div)); 
+        assert_eq!(parse_str("#VALUE!")?, Expr::Error(ExcelError::Value)); 
+        assert_eq!(parse_str("#REF!")?, Expr::Error(ExcelError::Ref)); 
+        assert_eq!(parse_str("#NAME!")?, Expr::Error(ExcelError::Name)); 
+        assert_eq!(parse_str("#NUM!")?, Expr::Error(ExcelError::Num)); 
+        assert_eq!(parse_str("#N/A!")?, Expr::Error(ExcelError::NA)); 
+        assert_eq!(parse_str("#GETTING_DATA")?, Expr::Error(ExcelError::GettingData)); 
+        Ok(())
     }
 
     #[test]
-    fn test_errors() {
-        assert_eq!(parse_str("#NULL!"), Expr::Error(Error::Null)); 
-        assert_eq!(parse_str("#DIV/0!"), Expr::Error(Error::Div)); 
-        assert_eq!(parse_str("#VALUE!"), Expr::Error(Error::Value)); 
-        assert_eq!(parse_str("#REF!"), Expr::Error(Error::Ref)); 
-        assert_eq!(parse_str("#NAME!"), Expr::Error(Error::Name)); 
-        assert_eq!(parse_str("#NUM!"), Expr::Error(Error::Num)); 
-        assert_eq!(parse_str("#N/A!"), Expr::Error(Error::NA)); 
-        assert_eq!(parse_str("#GETTING_DATA"), Expr::Error(Error::GettingData)); 
+    fn test_function() -> Result<(), Error> {
+        assert_eq!(parse_str("test(\"a\", \"b\")")?, Expr::Func {name: String::from("test"), args: vec![Expr::from("a"), Expr::from("b")]}); 
+        Ok(())
     }
 
     #[test]
-    fn test_function() {
-        assert_eq!(parse_str("test(\"a\", \"b\")"), Expr::Func {name: String::from("test"), args: vec![Expr::from("a"), Expr::from("b")]}); 
+    fn test_reference() -> Result<(), Error> {
+        assert_eq!(parse_str("test!A1")?, Expr::Reference { sheet: Some("test".to_string()), reference: "A1".to_string()}); 
+        assert_eq!(parse_str("test!A1:B2")?, Expr::Reference { sheet: Some("test".to_string()), reference: "A1:B2".to_string()}); 
+        Ok(())
     }
 
     #[test]
-    fn test_reference() {
-        assert_eq!(parse_str("test!A1"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1".to_string()}); 
-        assert_eq!(parse_str("test!A1:B2"), Expr::Reference { sheet: Some("test".to_string()), reference: "A1:B2".to_string()}); 
-    }
-
-    #[test]
-    fn test_array() {
-        assert_eq!(parse_str("{1, 2, 3, 4}"), Expr::Array(vec![Expr::from(1.0), Expr::from(2.0), Expr::from(3.0), Expr::from(4.0)])); 
-        assert_eq!(parse_str("{(1+2), 2, 3, 4}"), Expr::Array(vec![
+    fn test_array() -> Result<(), Error> {
+        assert_eq!(parse_str("{1, 2, 3, 4}")?, Expr::Array(vec![Expr::from(1.0), Expr::from(2.0), Expr::from(3.0), Expr::from(4.0)])); 
+        assert_eq!(parse_str("{(1+2), 2, 3, 4}")?, Expr::Array(vec![
                 Expr::Infix(
                     Infix::Plus, 
                     Box::new(Expr::from(1.0)), 
@@ -324,29 +324,31 @@ mod tests {
                 Expr::from(3.0), 
                 Expr::from(4.0)
         ])); 
+        Ok(())
     }
 
     #[test]
-    fn test_prefix() {
-        assert_eq!(parse_str("+1"), Expr::Prefix(Prefix::Plus, Box::new(Expr::from(1.0)))); 
+    fn test_prefix() -> Result<(), Error>{
+        assert_eq!(parse_str("+1")?, Expr::Prefix(Prefix::Plus, Box::new(Expr::from(1.0)))); 
+        Ok(())
     }
 
     #[test]
-    fn test_infix() {
-        assert_eq!(parse_str("1+1"), Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("(1+1)"), Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 - 1)"), Expr::Infix(Infix::Minus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 / 1)"), Expr::Infix(Infix::Divide, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 * 1)"), Expr::Infix(Infix::Multiply, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 ^ 1)"), Expr::Infix(Infix::Exponent, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 = 1)"), Expr::Infix(Infix::Equal, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 < 1)"), Expr::Infix(Infix::LessThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 <= 1)"), Expr::Infix(Infix::LessThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 > 1)"), Expr::Infix(Infix::GreaterThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 >= 1)"), Expr::Infix(Infix::GreaterThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 <> 1)"), Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 <> 1)"), Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("(1+2)*(3+5)"), Expr::Infix(
+    fn test_infix() -> Result<(), Error> {
+        assert_eq!(parse_str("1+1")?, Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("(1+1)")?, Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 - 1)")?, Expr::Infix(Infix::Minus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 / 1)")?, Expr::Infix(Infix::Divide, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 * 1)")?, Expr::Infix(Infix::Multiply, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 ^ 1)")?, Expr::Infix(Infix::Exponent, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 = 1)")?, Expr::Infix(Infix::Equal, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 < 1)")?, Expr::Infix(Infix::LessThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <= 1)")?, Expr::Infix(Infix::LessThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 > 1)")?, Expr::Infix(Infix::GreaterThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 >= 1)")?, Expr::Infix(Infix::GreaterThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <> 1)")?, Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <> 1)")?, Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("(1+2)*(3+5)")?, Expr::Infix(
                 Infix::Multiply, 
                 Box::new(Expr::Infix(
                         Infix::Plus,
@@ -359,7 +361,7 @@ mod tests {
                         Box::new(Expr::from(5.0))
                 ))
         )); 
-        assert_eq!(parse_str("(1+(2*1))"), Expr::Infix(
+        assert_eq!(parse_str("(1+(2*1))")?, Expr::Infix(
                 Infix::Plus, 
                 Box::new(Expr::from(1.0)), 
                 Box::new(
@@ -369,21 +371,24 @@ mod tests {
                         Box::new(Expr::from(1.0))
                     )
                 ))); 
+        Ok(())
     }
 
     #[test]
-    fn test_reference_formula() {
-        assert_eq!(parse_str("SUM(Sheet1!A1:A10)"), Expr::Func { name: "SUM".to_string(), args: vec![Expr::Reference { sheet: Some("Sheet1".to_string()), reference: "A1:A10".to_string() }] }); 
+    fn test_reference_formula() -> Result<(), Error> {
+        assert_eq!(parse_str("SUM(Sheet1!A1:A10)")?, Expr::Func { name: "SUM".to_string(), args: vec![Expr::Reference { sheet: Some("Sheet1".to_string()), reference: "A1:A10".to_string() }] }); 
+        Ok(())
     }
 
     #[test]
-    fn test_floor() {
-        assert_eq!(parse_str("FLOOR(3.7, 1)"), Expr::Func {
+    fn test_floor() -> Result<(), Error> {
+        assert_eq!(parse_str("FLOOR(3.7, 1)")?, Expr::Func {
             name: "FLOOR".to_string(),
             args: vec![
                 Expr::from(3.7), 
                 Expr::from(1.0)
             ]
         }); 
+        Ok(())
     }
 }

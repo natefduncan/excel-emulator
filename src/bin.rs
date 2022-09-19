@@ -4,7 +4,8 @@ use excel_lib::{
     parser::{
         ast::Expr, 
         parse_str
-    }
+    }, 
+    errors::Error
 }; 
 
 #[derive(Parser)]
@@ -32,7 +33,7 @@ enum Commands {
     }, 
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let cli = Cli::parse();
     let mut book: Book = Book::from(cli.path); 
     book.load().expect("Could not load workbook."); 
@@ -45,17 +46,18 @@ fn main() {
             println!("{:?}", book.dependencies.get_order()); 
         }, 
         Some(Commands::Get {range}) => {
-            let expr: Expr = parse_str(range);
+            let expr: Expr = parse_str(range)?;
             if matches!(expr, Expr::Reference { sheet: _, reference: _} ) {
-				println!("{}", &book.resolve_ref(expr)); 
+				println!("{}", &book.resolve_ref(expr)?); 
             } else {
                 panic!("Could not resolve {} to a reference.", range); 
             }
         }, 
         Some(Commands::Calculate {range}) => {
-            book.calculate(); 
+            book.calculate()?; 
             println!("{:?}", book.resolve_str_ref(range)); 
         }
         _ => {}
     }
+    Ok(())
 }
