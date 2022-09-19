@@ -35,6 +35,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"DATEDIF" => Box::new(Datedif::from(args)).evaluate(),	
 		"PMT" => Box::new(Pmt::from(args)).evaluate(),	
 		"COUNTA" => Box::new(Counta::from(args)).evaluate(),	
+		"ROUNDDOWN" => Box::new(Rounddown::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -393,6 +394,18 @@ fn counta(args: Vec<Value>) -> Value {
     )
 }
 
+#[function]
+fn rounddown(x: Value, num_digits: Value) -> Value {
+    let x: f64 = x.as_num(); 
+    let num_digits: f64 = num_digits.as_num(); 
+    if num_digits > 0.0 {
+        Value::from(((x * 10.0_f64.powf(num_digits)) as i64) as f64 / 10.0_f64.powf(num_digits))
+    } else if num_digits < 0.0 {
+        Value::from(((x / 10.0_f64.powf(-num_digits)) as i64) as f64 * 10.0_f64.powf(-num_digits))
+    } else {
+        Value::from((x as i64) as f64)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -404,6 +417,15 @@ mod tests {
         workbook::Book
     };
     use chrono::naive::NaiveDate; 
+
+    #[test]
+    fn test_rounddown() {
+        assert_eq!(evaluate_str("ROUNDDOWN(3.2, 0)"), Value::from(3.0)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(76.9, 0)"), Value::from(76.0)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(3.14159, 3)"), Value::from(3.141)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(-3.14159, 1)"), Value::from(-3.1)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(31415.92654, -2)"), Value::from(31400)); 
+    }
 
     #[test]
     fn test_counta() {
