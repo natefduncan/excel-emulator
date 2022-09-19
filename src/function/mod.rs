@@ -32,6 +32,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"IF" => Box::new(Iffunc::from(args)).evaluate(),	
 		"XNPV" => Box::new(Xnpv::from(args)).evaluate(),	
 		"YEARFRAC" => Box::new(Yearfrac::from(args)).evaluate(),	
+		"DATEDIF" => Box::new(Datedif::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -340,6 +341,21 @@ fn yearfrac(start_date: Value, end_date: Value) -> Value {
     )    
 }
 
+#[function]
+fn datedif(start_date: Value, end_date: Value, unit: Value) -> Value {
+    let start_date: NaiveDate = start_date.as_date(); 
+    let end_date: NaiveDate = end_date.as_date(); 
+    match unit.as_text().as_str() {
+        "Y" | "y" => Value::from(end_date.year() - start_date.year()),
+        "M" | "m" => Value::from((end_date.year() as i32 - start_date.year() as i32)*12 + (end_date.month() as i32 - start_date.month() as i32)),
+        "D" | "d" => Value::from(NaiveDate::signed_duration_since(end_date, start_date).num_days() as f64),
+        "MD" | "md" => Value::from(end_date.day() as i32 - start_date.day() as i32), 
+        "YM" | "ym" => Value::from(end_date.month() as i32 - start_date.month() as i32), 
+        "YD" | "yd" => Value::from(end_date.ordinal() as i32 - start_date.ordinal() as i32),
+        _ => panic!("Not a valid unit.")
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -351,6 +367,16 @@ mod tests {
         workbook::Book
     };
     use chrono::naive::NaiveDate; 
+
+    #[test]
+    fn test_datedif() {
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"Y\")"), Value::from(16.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"M\")"), Value::from(193.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"D\")"), Value::from(5873.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"YM\")"), Value::from(1.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"MD\")"), Value::from(0.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"YD\")"), Value::from(29.0)); 
+    }
 
 	#[test]
     fn test_sum() {

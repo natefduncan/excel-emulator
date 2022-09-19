@@ -30,6 +30,7 @@ pub enum Value {
 }
 
 impl From<f64> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
+impl From<i32> for Value { fn from(f: i32) -> Value { Value::Num(f as f64) }}
 impl From<usize> for Value { fn from(f: usize) -> Value { Value::Num(f as f64) }}
 impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
