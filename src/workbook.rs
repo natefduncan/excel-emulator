@@ -11,7 +11,6 @@ use quick_xml::{
         attributes::Attribute
     }, 
 };
-use anyhow::Result; 
 use ndarray::{Array2, Array, s, Axis, ArrayView}; 
 use crate::{
     evaluate::{
@@ -28,6 +27,7 @@ use crate::{
         ast::Expr
     }, 
     cell::Cell, 
+    errors::Error
 }; 
 
 pub type ZipType = ZipArchive<File>; 
@@ -66,7 +66,7 @@ impl Book {
         Book { zip: None, sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, cells: HashMap::new(), dependencies: DependencyTree::new() }
     }
 
-    pub fn load(&mut self) -> Result<()> {
+    pub fn load(&mut self) -> Result<(), Error> {
         self.load_sheet_names()?; 
         self.load_shared_strings()?; 
         self.load_styles()?; 
@@ -74,7 +74,7 @@ impl Book {
         Ok(())
     }
 
-    pub fn load_shared_strings(&mut self) -> Result<()> {
+    pub fn load_shared_strings(&mut self) -> Result<(), Error> {
         let mut buf = Vec::new(); 
         if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/sharedStrings.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -103,7 +103,7 @@ impl Book {
        Ok(())
     }
 
-    pub fn load_styles(&mut self) -> Result<()> {
+    pub fn load_styles(&mut self) -> Result<(), Error> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/styles.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -136,7 +136,7 @@ impl Book {
         Ok(())
     }
 
-    pub fn load_sheet_names(&mut self) -> Result<()> {
+    pub fn load_sheet_names(&mut self) -> Result<(), Error> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/workbook.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -160,13 +160,13 @@ impl Book {
         Ok(())
     }
 
-    pub fn load_sheets(&mut self) -> Result<()> { 
+    pub fn load_sheets(&mut self) -> Result<(), Error> { 
         for sheet_id in 0..self.sheets.len() {
             self.load_sheet(sheet_id)?
         }
         Ok(()) 
     }
-    pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<()> {
+    pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<(), Error> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -231,12 +231,12 @@ impl Book {
                                 let base_reference = Reference::from(start_cell.as_tuple()); 
                                 let current_cell = Cell::from(flags.current_cell_reference.clone()); 
                                 let current_reference = Reference::from(current_cell.as_tuple());
-                                let adjusted_formula: Value = Value::Formula(format!("={}", adjust_formula(base_reference, current_reference, formula_text.clone()))); 
+                                let adjusted_formula: Value = Value::Formula(format!("={}", adjust_formula(base_reference, current_reference, formula_text.clone())?)); 
                                 let sheet = self.sheets.get(sheet_idx).unwrap(); 
                                 let (row, column): (usize, usize) = current_cell.as_tuple(); 
                                 // println!("{}, {}", flags.current_cell_reference, adjusted_formula); 
                                 self.cells.get_mut(sheet).unwrap()[[row-1, column-1]] = adjusted_formula.clone(); 
-                                self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &adjusted_formula.to_string(), &self.sheets); 
+                                self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &adjusted_formula.to_string(), &self.sheets)?; 
                                 flags.reset(); 
                             }
                         }
@@ -279,7 +279,7 @@ impl Book {
                             let cell = Cell::from(flags.current_cell_reference.clone()); 
                             let (row, column): (usize, usize) = cell.as_tuple(); 
                             if value.is_formula() {
-                                self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &value.to_string(), &self.sheets); 
+                                self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &value.to_string(), &self.sheets)?; 
                             }
                             self.cells.get_mut(sheet).unwrap()[[row-1, column-1]] = value; 
                            flags.reset(); 
@@ -335,8 +335,8 @@ impl Book {
         self.sheets[idx].clone()
     }
 
-    pub fn resolve_str_ref(&self, s: &str) -> Array2<Value> {
-        let expr: Expr = parse_str(s); 
+    pub fn resolve_str_ref(&self, s: &str) -> Result<Array2<Value>, Error> {
+        let expr: Expr = parse_str(s)?; 
         if matches!(expr, Expr::Reference { sheet: _, reference: _}) {
             self.resolve_ref(expr)
         } else {
@@ -344,7 +344,7 @@ impl Book {
         }
     }
 
-    pub fn resolve_ref(&self, expr: Expr) -> Array2<Value> {
+    pub fn resolve_ref(&self, expr: Expr) -> Result<Array2<Value>, Error> {
         if let Expr::Reference {sheet, reference} = expr {
             let (mut row, mut col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();
             let sheet: &Array2<Value> = match sheet {
@@ -378,13 +378,13 @@ impl Book {
                     output.push(Axis(1), ArrayView::from(&Array::from_elem(output.dim().0, Value::Empty))).unwrap(); 
                 }
             }
-            output
+            Ok(output)
         } else {
             panic!("Can only resolve a reference expression.")
         }
     }
 
-    pub fn expand_offsets(&mut self) {
+    pub fn expand_offsets(&mut self) -> Result<(), Error> {
         let offsets = self.dependencies.offsets.clone(); 
         for v in offsets.iter() {
             let sheet: Sheet = self.get_sheet_by_idx(v.sheet); 
@@ -392,17 +392,18 @@ impl Book {
             let formula_text = value.as_text(); 
             let mut chars = formula_text.chars(); 
             chars.next(); 
-            if let Expr::Func { name: _, args } = parse_str(chars.as_str()) {
-                let new_expr: Expr = offset_expr(args, self);
-                self.dependencies.add_expression(*v, new_expr, &self.sheets); 
+            if let Expr::Func { name: _, args } = parse_str(chars.as_str())? {
+                let new_expr: Expr = offset_expr(args, self)?;
+                self.dependencies.add_expression(*v, new_expr, &self.sheets)?; 
             } else {
                 panic!("Function did not return a formula")
             }
-       }
+        }
+        Ok(())
     }
 
-    pub fn calculate(&mut self) {
-        self.expand_offsets(); 
+    pub fn calculate(&mut self) -> Result<(), Error> {
+        self.expand_offsets()?; 
         for cell_id in self.dependencies.get_order().iter() {
             let sheet: &Sheet = &self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &self.cells.get(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]]; 
@@ -410,11 +411,12 @@ impl Book {
                 self.current_sheet = cell_id.sheet; 
                 let mut chars = formula_text.chars(); // Remove = at beginning
                 chars.next();
-                let expr: Expr = parse_str(chars.as_str()); 
-                let value = evaluate_expr_with_context(expr, self);
+                let expr: Expr = parse_str(chars.as_str())?; 
+                let value = evaluate_expr_with_context(expr, self)?;
                 self.cells.get_mut(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]] = value; 
             }
         }
+        Ok(())
     }
 }
 
@@ -495,13 +497,13 @@ mod tests {
     use crate::workbook::{Sheet, Book};
     use crate::evaluate::value::Value;
     use crate::parser::parse_str; 
+    use crate::errors::Error; 
     use ndarray::arr2; 
 
     fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> &'a Value {
         let sheet: Sheet = book.get_sheet_by_name(sheet_name); 
         &book.cells.get(&sheet).unwrap()[[row, column]]
     }
-
 
     #[test]
     fn test_sheet_names() {
@@ -526,25 +528,24 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_ref() {
+    fn test_resolve_ref() -> Result<(), Error> {
         let mut book = Book::from("assets/basic.xlsx"); 
         book.load().expect("Could not load workbook"); 
-        book.calculate(); 
-        assert_eq!(book.resolve_ref(parse_str("Sheet2!B2")), arr2(&[[Value::from(55.0)]])); 
-        assert_eq!(book.resolve_ref(parse_str("Sheet2!A1:B2")), arr2(&
+        book.calculate()?; 
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!B2")?)?, arr2(&[[Value::from(55.0)]])); 
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!A1:B2")?)?, arr2(&
             [[Value::Empty, Value::Empty], 
             [Value::Empty, Value::from(55.0)]]
         )); 
-        assert_eq!(book.resolve_ref(parse_str("Sheet2!C5:D6")), arr2(&
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!C5:D6")?)?, arr2(&
             [[Value::Empty, Value::Empty], 
             [Value::Empty, Value::Empty]]
         )); 
-        assert_eq!(book.resolve_ref(parse_str("Sheet2!B:B")), arr2(&
+        assert_eq!(book.resolve_ref(parse_str("Sheet2!B:B")?)?, arr2(&
             [[Value::Empty], 
             [Value::from(55.0)]]
         )); 
- 
- 
+        Ok(())
     }
 }
 

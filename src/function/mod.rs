@@ -6,37 +6,38 @@ use crate::{
     }, 
     reference::Reference, 
     cell::Cell, 
+    errors::Error, 
 }; 
 use function_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
 
-pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
+pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> {
     match name {
-		"SUM" => Box::new(Sum::from(args)).evaluate(), 
-		"AVERAGE" => Box::new(Average::from(args)).evaluate(), 
-		"COUNT" => Box::new(Count::from(args)).evaluate(),	
-		"EXPONENT" => Box::new(Exponent::from(args)).evaluate(),	
-		"CONCAT" => Box::new(Concat::from(args)).evaluate(),	
-		"AND" => Box::new(Andfunc::from(args)).evaluate(),	
-		"OR" => Box::new(Orfunc::from(args)).evaluate(),	
-		"MAX" => Box::new(Max::from(args)).evaluate(),	
-		"MIN" => Box::new(Min::from(args)).evaluate(),	
-		"MATCH" => Box::new(Matchfn::from(args)).evaluate(),	
-		"INDEX" => Box::new(Index::from(args)).evaluate(),	
-		"DATE" => Box::new(Date::from(args)).evaluate(),	
-		"FLOOR" => Box::new(Floor::from(args)).evaluate(),	
-		"IFERROR" => Box::new(Iferror::from(args)).evaluate(),	
-		"EOMONTH" => Box::new(Eomonth::from(args)).evaluate(),	
-		"SUMIFS" => Box::new(Sumifs::from(args)).evaluate(),	
-		"XIRR" => Box::new(Xirrfunc::from(args)).evaluate(),	
-		"IF" => Box::new(Iffunc::from(args)).evaluate(),	
-		"XNPV" => Box::new(Xnpv::from(args)).evaluate(),	
-		"YEARFRAC" => Box::new(Yearfrac::from(args)).evaluate(),	
-		"DATEDIF" => Box::new(Datedif::from(args)).evaluate(),	
-		"PMT" => Box::new(Pmt::from(args)).evaluate(),	
-		"COUNTA" => Box::new(Counta::from(args)).evaluate(),	
-		"ROUNDDOWN" => Box::new(Rounddown::from(args)).evaluate(),	
-        _ => panic!("Function {} does not convert to a value.", name)  
+		"SUM" => Ok(Box::new(Sum::from(args)).evaluate()), 
+		"AVERAGE" => Ok(Box::new(Average::from(args)).evaluate()), 
+		"COUNT" => Ok(Box::new(Count::from(args)).evaluate()),	
+		"EXPONENT" => Ok(Box::new(Exponent::from(args)).evaluate()),	
+		"CONCAT" => Ok(Box::new(Concat::from(args)).evaluate()),	
+		"AND" => Ok(Box::new(Andfunc::from(args)).evaluate()),	
+		"OR" => Ok(Box::new(Orfunc::from(args)).evaluate()),	
+		"MAX" => Ok(Box::new(Max::from(args)).evaluate()),	
+		"MIN" => Ok(Box::new(Min::from(args)).evaluate()),	
+		"MATCH" => Ok(Box::new(Matchfn::from(args)).evaluate()),	
+		"INDEX" => Ok(Box::new(Index::from(args)).evaluate()),	
+		"DATE" => Ok(Box::new(Date::from(args)).evaluate()),	
+		"FLOOR" => Ok(Box::new(Floor::from(args)).evaluate()),	
+		"IFERROR" => Ok(Box::new(Iferror::from(args)).evaluate()),	
+		"EOMONTH" => Ok(Box::new(Eomonth::from(args)).evaluate()),	
+		"SUMIFS" => Ok(Box::new(Sumifs::from(args)).evaluate()),	
+		"XIRR" => Ok(Box::new(Xirrfunc::from(args)).evaluate()),	
+		"IF" => Ok(Box::new(Iffunc::from(args)).evaluate()),	
+		"XNPV" => Ok(Box::new(Xnpv::from(args)).evaluate()),	
+		"YEARFRAC" => Ok(Box::new(Yearfrac::from(args)).evaluate()),	
+		"DATEDIF" => Ok(Box::new(Datedif::from(args)).evaluate()),	
+		"PMT" => Ok(Box::new(Pmt::from(args)).evaluate()),	
+		"COUNTA" => Ok(Box::new(Counta::from(args)).evaluate()),	
+		"ROUNDDOWN" => Ok(Box::new(Rounddown::from(args)).evaluate()),	
+        _ => Err(Error::FunctionNotSupport(name.to_string()))
     }
 }
 
@@ -414,165 +415,189 @@ mod tests {
             value:: Value, 
             evaluate_str 
         },
-        workbook::Book
+        workbook::Book,
+        errors::Error, 
     };
     use chrono::naive::NaiveDate; 
 
     #[test]
-    fn test_rounddown() {
-        assert_eq!(evaluate_str("ROUNDDOWN(3.2, 0)"), Value::from(3.0)); 
-        assert_eq!(evaluate_str("ROUNDDOWN(76.9, 0)"), Value::from(76.0)); 
-        assert_eq!(evaluate_str("ROUNDDOWN(3.14159, 3)"), Value::from(3.141)); 
-        assert_eq!(evaluate_str("ROUNDDOWN(-3.14159, 1)"), Value::from(-3.1)); 
-        assert_eq!(evaluate_str("ROUNDDOWN(31415.92654, -2)"), Value::from(31400)); 
+    fn test_rounddown() -> Result<(), Error> {
+        assert_eq!(evaluate_str("ROUNDDOWN(3.2, 0)")?, Value::from(3.0)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(76.9, 0)")?, Value::from(76.0)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(3.14159, 3)")?, Value::from(3.141)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(-3.14159, 1)")?, Value::from(-3.1)); 
+        assert_eq!(evaluate_str("ROUNDDOWN(31415.92654, -2)")?, Value::from(31400)); 
+        Ok(())
     }
 
     #[test]
-    fn test_counta() {
-        assert_eq!(evaluate_str("COUNTA(1,2,3,4,5)"), Value::from(5.0)); 
-        assert_eq!(evaluate_str("COUNTA({1,2,3,4,5})"), Value::from(5.0)); 
-        assert_eq!(evaluate_str("COUNTA({1,2,3,4,5},6,\"7\")"), Value::from(7.0)); 
+    fn test_counta() -> Result<(), Error> {
+        assert_eq!(evaluate_str("COUNTA(1,2,3,4,5)")?, Value::from(5.0)); 
+        assert_eq!(evaluate_str("COUNTA({1,2,3,4,5})")?, Value::from(5.0)); 
+        assert_eq!(evaluate_str("COUNTA({1,2,3,4,5},6,\"7\")")?, Value::from(7.0)); 
+        Ok(())
     }
 
     #[test]
-    fn test_pmt() {
-        assert!((-1037.03 - evaluate_str("PMT(0.08/12, 10, 10000)").as_num()).abs() < 0.01); 
-        assert!((-1030.16 - evaluate_str("PMT(0.08/12, 10, 10000, 0, 1)").as_num()).abs() < 0.01); 
+    fn test_pmt() -> Result<(), Error> {
+        assert!((-1037.03 - evaluate_str("PMT(0.08/12, 10, 10000)")?.as_num()).abs() < 0.01); 
+        assert!((-1030.16 - evaluate_str("PMT(0.08/12, 10, 10000, 0, 1)")?.as_num()).abs() < 0.01); 
+        Ok(())
     }
 
     #[test]
-    fn test_datedif() {
-        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"Y\")"), Value::from(16.0)); 
-        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"M\")"), Value::from(193.0)); 
-        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"D\")"), Value::from(5873.0)); 
-        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"YM\")"), Value::from(1.0)); 
-        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"MD\")"), Value::from(0.0)); 
-        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"YD\")"), Value::from(29.0)); 
+    fn test_datedif() -> Result<(), Error> {
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"Y\")")?, Value::from(16.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"M\")")?, Value::from(193.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"D\")")?, Value::from(5873.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"YM\")")?, Value::from(1.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"MD\")")?, Value::from(0.0)); 
+        assert_eq!(evaluate_str("DATEDIF(DATE(2004, 2, 10), DATE(2020, 3, 10), \"YD\")")?, Value::from(29.0)); 
+        Ok(())
     }
 
 	#[test]
-    fn test_sum() {
-		assert_eq!(evaluate_str("SUM(1,2,3,4,5)"), Value::from(15.0));
-		assert_eq!(evaluate_str("SUM({1,2;3,4})"), Value::from(10.0));
-		assert_eq!(evaluate_str("SUM({1,2,3,4,5},6,\"7\")"), Value::from(28.0));
-		assert_eq!(evaluate_str("SUM({1,\"2\",TRUE,4})"), Value::from(5.0));
+    fn test_sum() -> Result<(), Error> {
+		assert_eq!(evaluate_str("SUM(1,2,3,4,5)")?, Value::from(15.0));
+		assert_eq!(evaluate_str("SUM({1,2;3,4})")?, Value::from(10.0));
+		assert_eq!(evaluate_str("SUM({1,2,3,4,5},6,\"7\")")?, Value::from(28.0));
+		assert_eq!(evaluate_str("SUM({1,\"2\",TRUE,4})")?, Value::from(5.0));
+        Ok(())
     }
 
     #[test]
-    fn test_average() {
-		assert_eq!(evaluate_str("AVERAGE(1,2,3,4,5)"), Value::from(3.0));
-		assert_eq!(evaluate_str("AVERAGE({1,2;3,4})"), Value::from(2.5));
-		assert_eq!(evaluate_str("AVERAGE({1,2,3,4,5},6,\"7\")"), Value::from(4.0));
-		assert_eq!(evaluate_str("AVERAGE({1,\"2\",TRUE,4})"), Value::from(2.5));
+    fn test_average() -> Result<(), Error> {
+		assert_eq!(evaluate_str("AVERAGE(1,2,3,4,5)")?, Value::from(3.0));
+		assert_eq!(evaluate_str("AVERAGE({1,2;3,4})")?, Value::from(2.5));
+		assert_eq!(evaluate_str("AVERAGE({1,2,3,4,5},6,\"7\")")?, Value::from(4.0));
+		assert_eq!(evaluate_str("AVERAGE({1,\"2\",TRUE,4})")?, Value::from(2.5));
+        Ok(())
     }
 
     #[test]
-    fn test_count() {
-		assert_eq!(evaluate_str("COUNT(1,2,3,4,5)"), Value::from(5.0));
-		assert_eq!(evaluate_str("COUNT({1,2,3,4,5})"), Value::from(5.0));
-		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")"), Value::from(7.0));
+    fn test_count() -> Result<(), Error> {
+		assert_eq!(evaluate_str("COUNT(1,2,3,4,5)")?, Value::from(5.0));
+		assert_eq!(evaluate_str("COUNT({1,2,3,4,5})")?, Value::from(5.0));
+		assert_eq!(evaluate_str("COUNT({1,2,3,4,5},6,\"7\")")?, Value::from(7.0));
+        Ok(())
     }
  
     #[test]
-    fn test_concat() {
-		assert_eq!(evaluate_str("CONCAT(\"test\", \"func\")"), Value::from("testfunc".to_string()));
+    fn test_concat() -> Result<(), Error> {
+		assert_eq!(evaluate_str("CONCAT(\"test\", \"func\")")?, Value::from("testfunc".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn test_and() {
-		assert_eq!(evaluate_str("AND(TRUE, TRUE)"), Value::from(true));
+    fn test_and() -> Result<(), Error> {
+		assert_eq!(evaluate_str("AND(TRUE, TRUE)")?, Value::from(true));
+        Ok(())
     }
 
     #[test]
-    fn test_or() {
-		assert_eq!(evaluate_str("OR(TRUE, FALSE)"), Value::from(true));
+    fn test_or() -> Result<(), Error>  {
+		assert_eq!(evaluate_str("OR(TRUE, FALSE)")?, Value::from(true));
+        Ok(())
     }
 
     #[test]
-    fn test_max_min() {
-		assert_eq!(evaluate_str("MAX(1, 5, 10)"), Value::from(10.0));
-		assert_eq!(evaluate_str("MIN(1, 5, 10)"), Value::from(1.0));
+    fn test_max_min() -> Result<(), Error> {
+		assert_eq!(evaluate_str("MAX(1, 5, 10)")?, Value::from(10.0));
+		assert_eq!(evaluate_str("MIN(1, 5, 10)")?, Value::from(1.0));
+        Ok(())
     }
 
     #[test]
-    fn test_match() {
-		assert_eq!(evaluate_str("MATCH(3, {1,2,3,4,5}, 0)"), Value::from(3.0));
+    fn test_match() -> Result<(), Error> {
+		assert_eq!(evaluate_str("MATCH(3, {1,2,3,4,5}, 0)")?, Value::from(3.0));
+        Ok(())
     }
 
     #[test]
-    fn test_index() {
+    fn test_index() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate(); 
-        assert_eq!(book.resolve_str_ref("Sheet1!H3")[[0,0]].as_num(), 11.0); 
+        book.calculate()?; 
+        assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
+        Ok(())
     }
 
     #[test]
-    fn test_date() {
-		assert_eq!(evaluate_str("DATE(2022, 1, 1)"), Value::from(NaiveDate::from_ymd(2022, 1, 1)));
+    fn test_date() -> Result<(), Error> {
+		assert_eq!(evaluate_str("DATE(2022, 1, 1)")?, Value::from(NaiveDate::from_ymd(2022, 1, 1)));
+        Ok(())
     }
 
     #[test]
-    fn test_floor() {
-        assert_eq!(evaluate_str("FLOOR(3.7, 1)"), Value::from(3.0)); 
+    fn test_floor() -> Result<(), Error> {
+        assert_eq!(evaluate_str("FLOOR(3.7, 1)")?, Value::from(3.0)); 
         // assert_eq!(evaluate_str("FLOOR(-2.5, -2)"), Value::from(-2.0)); 
         // assert_eq!(evaluate_str("FLOOR(1.58, 0.01)"), Value::from(1.5)); 
         // assert_eq!(evaluate_str("FLOOR(0.234, 0.01)"), Value::from(0.23)); 
+        Ok(())
     }
 
     #[test]
-    fn test_iferror() {
-        assert_eq!(evaluate_str("IFERROR(#VALUE!, 1)"), Value::from(1.0)); 
+    fn test_iferror() -> Result<(), Error> {
+        assert_eq!(evaluate_str("IFERROR(#VALUE!, 1)")?, Value::from(1.0)); 
+        Ok(())
     }
 
     #[test]
-    fn test_eomonth() {
-        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 2, 29), 12)"), Value::from(NaiveDate::from_ymd(2005, 2, 28))); 
-        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 2, 28), 12)"), Value::from(NaiveDate::from_ymd(2005, 2, 28))); 
-        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 1, 15), -23)"), Value::from(NaiveDate::from_ymd(2002, 2, 28))); 
-        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 1, 15), 0)"), Value::from(NaiveDate::from_ymd(2004, 1, 31))); 
+    fn test_eomonth() -> Result<(), Error> {
+        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 2, 29), 12)")?, Value::from(NaiveDate::from_ymd(2005, 2, 28))); 
+        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 2, 28), 12)")?, Value::from(NaiveDate::from_ymd(2005, 2, 28))); 
+        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 1, 15), -23)")?, Value::from(NaiveDate::from_ymd(2002, 2, 28))); 
+        assert_eq!(evaluate_str("EOMONTH(DATE(2004, 1, 15), 0)")?, Value::from(NaiveDate::from_ymd(2004, 1, 31))); 
+        Ok(())
     }
 
     #[test]
-    fn test_sumifs() {
+    fn test_sumifs() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate(); 
-        assert_eq!(book.resolve_str_ref("Sheet1!H5")[[0,0]].as_num(), 2.0); 
+        book.calculate()?; 
+        assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
+        Ok(())
     }
 
     #[test]
-    fn test_xirr() {
+    fn test_xirr() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate(); 
-        assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")[[0,0]].as_num()).abs() < 0.01); 
+        book.calculate()?; 
+        assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
+        Ok(())
     }
 
     #[test]
-    fn test_offset() {
+    fn test_offset() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate(); 
-        assert_eq!(book.resolve_str_ref("Sheet1!H6")[[0,0]].as_num(), 10.0); 
+        book.calculate()?; 
+        assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
+        Ok(())
     }
     
     #[test]
-    fn test_if() {
-        assert_eq!(evaluate_str("IF(TRUE, 1, 2)"), Value::from(1.0)); 
-        assert_eq!(evaluate_str("IF(FALSE, 1, 2)"), Value::from(2.0)); 
+    fn test_if() -> Result<(), Error> {
+        assert_eq!(evaluate_str("IF(TRUE, 1, 2)")?, Value::from(1.0)); 
+        assert_eq!(evaluate_str("IF(FALSE, 1, 2)")?, Value::from(2.0)); 
+        Ok(())
     }
 
     #[test]
-    fn test_xnpv() {
+    fn test_xnpv() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate(); 
-        assert!((7.657 - book.resolve_str_ref("Sheet1!H7")[[0,0]].as_num()).abs() < 0.01); 
+        book.calculate()?; 
+        assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
+        Ok(())
     }
 
     #[test]
-    fn test_yearfrac() {
-        assert!((0.58055 - evaluate_str("YEARFRAC(DATE(2012, 1, 1), DATE(2012, 7, 30))").as_num() < 0.01)); 
+    fn test_yearfrac() -> Result<(), Error> {
+        assert!((0.58055 - evaluate_str("YEARFRAC(DATE(2012, 1, 1), DATE(2012, 7, 30))")?.as_num() < 0.01)); 
+        Ok(())
     }
 }
