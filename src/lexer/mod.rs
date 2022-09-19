@@ -173,10 +173,16 @@ fn in_sheet_name(chr: u8) -> bool {
     is_digit_or_alpha(chr) || is_special
 }
 
+fn is_digit(chr: u8) -> bool {
+    (0x30..=0x39).contains(&chr)
+}
+
+fn is_alpha(chr: u8) -> bool {
+    (0x41..=0x5A).contains(&chr) || (0x61..=0x7A).contains(&chr)
+}
+
 fn is_digit_or_alpha(chr: u8) -> bool {
-    let is_digit: bool = (0x30..=0x39).contains(&chr); 
-    let is_alpha: bool = (0x41..=0x5A).contains(&chr) || (0x61..=0x7A).contains(&chr); 
-    is_digit || is_alpha
+    is_digit(chr) || is_alpha(chr)
 }
 
 fn lex_sheet_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -244,13 +250,25 @@ fn complete_str_from_str<F: FromStr>(c: &str) -> Result<F, F::Err> {
     FromStr::from_str(c)
 }
 
-fn lex_integer(input: &[u8]) -> IResult<&[u8], Token> {
+fn lex_int(input: &[u8]) -> IResult<&[u8], Token> {
     map(
         map_res(
             map_res(digit1, complete_byte_slice_str_from_utf8),
             complete_str_from_str,
         ),
         Token::Integer,
+    )(input)
+}
+
+fn lex_float(input: &[u8]) -> IResult<&[u8], Token> {
+    map(
+        map_res(
+            recognize(separated_pair(digit1, period, digit1)),
+            complete_byte_slice_str_from_utf8
+        ), 
+        |c: &str| {
+            Token::Float(c.parse::<f64>().unwrap())
+        }
     )(input)
 }
 
@@ -271,7 +289,8 @@ fn lex_token(input: &[u8]) -> IResult<&[u8], Token> {
         lex_syntax,
         lex_string,
         lex_references,
-        lex_integer,
+        lex_float, 
+        lex_int, 
         lex_ident, 
     ))(input)
 }
@@ -293,8 +312,7 @@ mod tests {
 	use super::*; 
 
 	fn lex(b: &[u8]) -> Vec<Token> {
-        let (res, result) = Lexer::lex_tokens(b).unwrap(); 
-        println!("{:?}, {:?}", res, result); 
+        let (_res, result) = Lexer::lex_tokens(b).unwrap(); 
         result
     }
 
@@ -331,10 +349,11 @@ mod tests {
         assert_eq!(lex(b"123"), vec![
             Token::Integer(123), 
         ]); 
+        assert_eq!(lex(b"0.05"), vec![
+            Token::Float(0.05)
+        ]); 
         assert_eq!(lex(b"12.30"), vec![
-            Token::Integer(12),
-            Token::Period, 
-            Token::Integer(30)
+            Token::Float(12.30),
         ]); 
     }
 

@@ -1,5 +1,5 @@
 use nom::branch::*;
-use nom::bytes::complete::{take, take_while};
+use nom::bytes::complete::take;
 use nom::combinator::{map, verify, opt};
 use nom::multi::many0;
 use nom::sequence::{preceded, delimited, pair, tuple};
@@ -46,14 +46,8 @@ fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
         Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
     } else {
         match t1.tok[0].clone() {
-            Token::Integer(_) => {
-                let (i2, t2) = take_while(|c| matches!(c, &Token::Integer(_)) || matches!(c, &Token::Period))(input)?; 
-				let mut res = String::new(); 
-                for t in t2.tok.iter() {
-					res = format!("{}{}", res, t);
-                }
-                Ok((i2, Literal::Number(res.parse::<f64>().unwrap())))
-            },
+            Token::Integer(x) => Ok((i1, Literal::Number(x as f64))), 
+            Token::Float(x) => Ok((i1, Literal::Number(x))), 
             Token::Text(s) => Ok((i1, Literal::Text(s))),
             Token::Boolean(b) => Ok((i1, Literal::Boolean(b))),
             _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag))),

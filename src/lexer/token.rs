@@ -3,10 +3,11 @@ use std::iter::Enumerate;
 use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
 use std::fmt; 
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Token {
     //Literal
     Integer(i64),
+    Float(f64),
     Boolean(bool), 
     Text(String), 
     // Error
@@ -49,10 +50,19 @@ pub enum Token {
     Ident(String), 
 }
 
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for Token { }
+
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Token::Integer(i) => write!(f, "{}", i), 
+            Token::Float(x) => write!(f, "{}", x), 
             Token::Boolean(b) => {
                 if *b {
                     write!(f, "TRUE")
