@@ -31,6 +31,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Value {
 		"XIRR" => Box::new(Xirrfunc::from(args)).evaluate(),	
 		"IF" => Box::new(Iffunc::from(args)).evaluate(),	
 		"XNPV" => Box::new(Xnpv::from(args)).evaluate(),	
+		"YEARFRAC" => Box::new(Yearfrac::from(args)).evaluate(),	
         _ => panic!("Function {} does not convert to a value.", name)  
     }
 }
@@ -309,12 +310,10 @@ fn iffunc(condition: Value, a: Value, b: Value) -> Value {
 
 #[function]
 fn xnpv(rate: Value, values: Value, dates: Value) -> Value {
-    println!("rate: {:?}", rate); 
     let rate: f64 = rate.as_num(); 
     let values: Vec<f64> = values.as_array().iter().map(|x| x.as_num()).collect(); 
     let dates: Vec<NaiveDate> = dates.as_array().iter().map(|x| x.as_date()).collect(); 
     let start_date = dates.get(0).unwrap().clone(); 
-    println!("rate2: {:?}", rate); 
     Value::from(
         values
         .into_iter()
@@ -323,10 +322,22 @@ fn xnpv(rate: Value, values: Value, dates: Value) -> Value {
             .into_iter()
         ).fold(0.0, |s, (value, date)| {
             let days = NaiveDate::signed_duration_since(date, start_date).num_days() as f64; 
-            println!("{:?}", days); 
             s + (value / ((1.0+rate).powf(days / 365.0)))
         })
     ) 
+}
+
+#[function]
+//TODO: Implement basis
+fn yearfrac(start_date: Value, end_date: Value) -> Value {
+    let start_date: NaiveDate = start_date.as_date(); 
+    let end_date: NaiveDate = end_date.as_date(); 
+    Value::from(
+        (
+            ((end_date.year() as i32 - start_date.year() as i32) * 360) + 
+            (end_date.ordinal() as i32 - start_date.ordinal() as i32)
+        ) as f64 / 360.0
+    )    
 }
 
 
@@ -456,14 +467,14 @@ mod tests {
 
     #[test]
     fn test_xnpv() {
-        assert_eq!(evaluate_str("IF(TRUE, 1, 2)"), Value::from(1.0)); 
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
         book.calculate(); 
-        println!("{:?}", book.resolve_str_ref("Sheet1!H7")); 
         assert!((7.657 - book.resolve_str_ref("Sheet1!H7")[[0,0]].as_num()).abs() < 0.01); 
     }
- 
 
-
+    #[test]
+    fn test_yearfrac() {
+        assert!((0.58055 - evaluate_str("YEARFRAC(DATE(2012, 1, 1), DATE(2012, 7, 30))").as_num() < 0.01)); 
+    }
 }
