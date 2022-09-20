@@ -36,9 +36,9 @@ enum Commands {
 fn main() -> Result<(), Error> {
     let cli = Cli::parse();
     let mut book: Book = Book::from(cli.path); 
-    book.load().expect("Could not load workbook."); 
+    book.load()?; 
     match &cli.command {
-        Some(Commands::Load) => { book.load().expect("Could not load workbook.")}, 
+        Some(Commands::Load) => { book.load()?}, 
         Some(Commands::Deps) => { 
             println!("{}", book.dependencies); 
         }, 

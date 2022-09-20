@@ -402,9 +402,7 @@ impl Book {
         Ok(())
     }
 
-    pub fn calculate(&mut self) -> Result<(), Error> {
-        self.expand_offsets()?; 
-        for cell_id in self.dependencies.get_order().iter() {
+    pub fn calculate_cell(&mut self, cell_id: &CellId) -> Result<(), Error> {
             let sheet: &Sheet = &self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &self.cells.get(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]]; 
             if let Value::Formula(formula_text) = cell_value.clone() {
@@ -414,6 +412,16 @@ impl Book {
                 let expr: Expr = parse_str(chars.as_str())?; 
                 let value = evaluate_expr_with_context(expr, self)?;
                 self.cells.get_mut(sheet).unwrap()[[cell_id.row-1, cell_id.column-1]] = value; 
+            }
+            Ok(())
+    } 
+
+    pub fn calculate(&mut self) -> Result<(), Error> {
+        self.expand_offsets()?; 
+        for cell_id in self.dependencies.get_order().iter() {
+            match self.calculate_cell(cell_id) {
+                Ok(()) => {}, 
+                Err(err) => { return Err(Error::Calculation(cell_id.clone(), Box::new(err))) } 
             }
         }
         Ok(())
