@@ -210,6 +210,22 @@ fn parse_prefix(input: Tokens) -> IResult<Tokens, Expr> {
     )(input)
 }
 
+fn infix_binding_power(infix: Infix) -> (u8, u8) {
+    match infix {
+        Infix::Equal
+            | Infix::NotEqual 
+            | Infix::LessThan
+            | Infix::LessThanEqual
+            | Infix::GreaterThan
+            | Infix::GreaterThanEqual => (1, 2), 
+        Infix::Ampersand => (3, 4), 
+        Infix::Plus | Infix::Minus => (5, 6), 
+        Infix::Multiply | Infix::Divide => (7, 8), 
+        Infix::Exponent => (9, 10), 
+        _ => panic!("{} not supported infix", infix)
+    }
+}
+
 fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
     alt((
         map(plus_tag, |_| Infix::Plus), 
@@ -227,19 +243,48 @@ fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
     ))(input)
 }
 
-fn parse_infix(input: Tokens) -> IResult<Tokens, Expr> {
-    map(
-        tuple((
-            alt((parse_expr, parse_block)), 
-            parse_infix_tags,
-            alt((parse_expr, parse_block)), 
-        )),
-        |(a, infix, b)| {
-            Expr::Infix(infix, Box::new(a), Box::new(b))
-        }
-    )(input)
+fn parse_pratt_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    parse_pratt(input, 0)
 }
-    
+
+fn parse_pratt(input: Tokens, min_pb: u8) -> IResult<Tokens, Expr> {
+    let (i1, left) = parse_expr(input)?;
+    println!("parse pratt: {:?}, {:?}", i1, left); 
+    go_parse_pratt(i1, left, min_pb)
+}
+
+fn go_parse_pratt(input: Tokens, lhs: Expr, min_bp: u8) -> IResult<Tokens, Expr> {
+    let (i1, t1) = take(1usize)(input)?; 
+    if t1.tok.is_empty() {
+        Ok((i1, lhs))
+    } else {
+        let (i2, infix) = parse_infix_tags(input)?; 
+        println!("go parse pratt: {:?}", infix); 
+        let (lhp, rhp) = infix_binding_power(infix); 
+        println!("{} {}", lhp, rhp); 
+        if lhp < min_bp {
+            return Ok((i1, lhs)); 
+        }
+        let (i2, left2) = parse_infix(input, lhs)?;
+        go_parse_pratt(i2, left2, rhp)
+    }
+}
+
+fn parse_infix(input: Tokens, lhs: Expr) -> IResult<Tokens, Expr> {
+    let (i1, t1) = take(1usize)(input)?;
+    if t1.tok.is_empty() {
+        Err(Err::Error(error_position!(input, ErrorKind::Tag)))
+    } else {
+        let (_, infix) = parse_infix_tags(input)?;
+        println!("parse infix: {:?}", infix); 
+        let (lhp, rhp) = infix_binding_power(infix.clone()); 
+        println!("{} {}", lhp, rhp); 
+        let (i2, rhs) = parse_pratt(input, rhp)?;
+        println!("parse infix: {:?}", rhs); 
+        Ok((i2, Expr::Infix(infix, Box::new(lhs), Box::new(rhs))))
+    }
+}
+
 fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
         parse_error_expr, 
@@ -252,7 +297,7 @@ fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
 
 pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
-        parse_infix, 
+        parse_pratt_expr, 
         parse_prefix,
         parse_block, 
         parse_expr, 
@@ -335,6 +380,7 @@ mod tests {
 
     #[test]
     fn test_infix() -> Result<(), Error> {
+        println!("{:?}", parse_str("1+1")); 
         assert_eq!(parse_str("1+1")?, Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
         assert_eq!(parse_str("(1+1)")?, Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
         assert_eq!(parse_str("1 - 1)")?, Expr::Infix(Infix::Minus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
@@ -389,6 +435,13 @@ mod tests {
                 Expr::from(1.0)
             ]
         }); 
+        Ok(())
+    }
+
+    #[test]
+    fn test_complex() -> Result<(), Error> {
+        println!("{:?}", parse_str("1*1*1*1")); 
+        assert_eq!(parse_str("1*1*1*1")?, Expr::from(1.0)); 
         Ok(())
     }
 }
