@@ -136,9 +136,9 @@ fn lex_string(input: &[u8]) -> IResult<&[u8], Token> {
 // References 
 fn lex_vrange(input: &[u8]) -> IResult<&[u8], Token> {
     let vrange_token = recognize(separated_pair(
-        alpha1, 
+        pair(opt(tag("$")), alpha1), 
         tag(":"), 
-        alpha1
+        pair(opt(tag("$")), alpha1), 
     ));
     map_res(
         vrange_token,
@@ -151,9 +151,9 @@ fn lex_vrange(input: &[u8]) -> IResult<&[u8], Token> {
 
 fn lex_hrange(input: &[u8]) -> IResult<&[u8], Token> {
     let vrange_token = recognize(separated_pair(
-        digit1, 
+        pair(opt(tag("$")), digit1), 
         tag(":"), 
-        digit1
+        pair(opt(tag("$")), digit1), 
     ));
     map_res(
         vrange_token,
@@ -403,12 +403,14 @@ mod tests {
     #[test]
     fn test_vrange() -> Result<(), Error> {
         assert_eq!(lex(b"A:A")?, vec![Token::VRange(String::from("A:A")), Token::EOF]); 
+        assert_eq!(lex(b"$A:$A")?, vec![Token::VRange(String::from("$A:$A")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_hrange() -> Result<(), Error> {
         assert_eq!(lex(b"1:1")?, vec![Token::HRange(String::from("1:1")), Token::EOF]); 
+        assert_eq!(lex(b"$1:$1")?, vec![Token::HRange(String::from("$1:$1")), Token::EOF]); 
         Ok(())
     }
 
