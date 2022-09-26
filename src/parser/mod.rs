@@ -2,7 +2,7 @@ use nom::branch::*;
 use nom::bytes::complete::take;
 use nom::combinator::{map, verify, opt};
 use nom::multi::many0;
-use nom::sequence::{preceded, delimited, pair, tuple};
+use nom::sequence::{preceded, delimited, pair, terminated};
 use nom::*;
 use nom::Err; 
 use nom::error::{Error as NomError, ErrorKind}; 
@@ -14,7 +14,7 @@ use crate::{
         Lexer,
         token::{Token, Tokens}, 
     }, 
-    parser::ast::{Expr, Error as ExcelError, Literal, Prefix, Infix}, 
+    parser::ast::{Expr, Error as ExcelError, Literal, Prefix, Infix, Precedence}, 
     errors::Error
 }; 
 
@@ -41,6 +41,7 @@ tag_token!(lparen_tag, Token::LParen);
 tag_token!(rparen_tag, Token::RParen); 
 tag_token!(lbrace_tag, Token::LBrace); 
 tag_token!(rbrace_tag, Token::RBrace); 
+tag_token!(eof_tag, Token::EOF); 
 
 fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
     let (i1, t1) = take(1usize)(input)?;
@@ -84,28 +85,6 @@ fn parse_error_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(parse_error, Expr::Error)(input)
 }
 
-fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
-    map(
-        preceded(alt((comma_tag, semicolon_tag)), parse), 
-        |expr| {
-            expr
-        }
-    )(input)
-}
-
-fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
-    map(
-        pair(parse, many0(parse_comma_exprs)),
-        |(first, second)| {
-            [&vec![first][..], &second[..]].concat()
-        }
-    )(input)
-}
-
-fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
-    Ok((input, vec![]))
-}
-
 fn parse_ident(input: Tokens) -> IResult<Tokens, Token> {
     let (i1, t1) = take(1usize)(input)?;
     if t1.tok.is_empty() {
@@ -131,6 +110,44 @@ fn parse_func_expr(input: Tokens) -> IResult<Tokens, Expr> {
             Expr::Func { name: format!("{}", ident), args: exprs }
         }
    )(input)
+}
+
+fn parse_prefix_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    map(
+        pair(alt((plus_tag, minus_tag)), parse_expr), 
+        |(pre, expr)| {
+            let prefix = match &pre.tok[0] {
+                Token::Plus => Prefix::Plus, 
+                Token::Minus => Prefix::Minus, 
+                _ => unreachable!()
+            }; 
+            let box_expr = Box::new(expr); 
+            Expr::Prefix(prefix, box_expr)
+        }
+    )(input)
+}
+
+
+fn parse_comma_exprs(input: Tokens) -> IResult<Tokens, Expr> {
+    map(
+        preceded(alt((comma_tag, semicolon_tag)), parse_expr), 
+        |expr| {
+            expr
+        }
+    )(input)
+}
+
+fn parse_exprs(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
+    map(
+        pair(parse_expr, many0(parse_comma_exprs)),
+        |(first, second)| {
+            [&vec![first][..], &second[..]].concat()
+        }
+    )(input)
+}
+
+fn empty_boxed_vec(input: Tokens) -> IResult<Tokens, Vec<Expr>> {
+    Ok((input, vec![]))
 }
 
 fn parse_array_expr(input: Tokens) -> IResult<Tokens, Expr> {
@@ -174,7 +191,7 @@ fn parse_cell_or_range(input: Tokens) -> IResult<Tokens, Token> {
     }
 }
 
-fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
+fn parse_reference_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(
         pair(
             opt(parse_sheet_or_multisheet), parse_cell_or_range
@@ -188,26 +205,25 @@ fn parse_reference(input: Tokens) -> IResult<Tokens, Expr> {
     )(input)
 }
 
-fn parse_block(input: Tokens) -> IResult<Tokens, Expr> {
-    delimited(lparen_tag, parse, rparen_tag)(input)
+
+fn parse_paren_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    delimited(lparen_tag, parse_expr, rparen_tag)(input)
 }
 
-fn parse_prefix(input: Tokens) -> IResult<Tokens, Expr> {
-    map(
-        pair(
-            alt((plus_tag, minus_tag)), 
-            alt((parse_block, parse_expr))
-        ),
-        |(pre, expr)| {
-            let prefix = match &pre.tok[0] {
-                Token::Plus => Prefix::Plus, 
-                Token::Minus => Prefix::Minus, 
-                _ => unreachable!()
-            }; 
-            let box_expr = Box::new(expr); 
-            Expr::Prefix(prefix, box_expr)
-        }
-    )(input)
+
+fn infix_precedence(infix: Infix) -> Precedence {
+    match infix {
+        Infix::Equal
+            | Infix::NotEqual 
+            | Infix::LessThan
+            | Infix::LessThanEqual
+            | Infix::GreaterThan
+            | Infix::GreaterThanEqual => Precedence::Comparison, 
+        Infix::Ampersand => Precedence::Concat, 
+        Infix::Plus | Infix::Minus => Precedence::PlusMinus, 
+        Infix::Multiply | Infix::Divide => Precedence::MultDiv, 
+        Infix::Exponent => Precedence::Exponent, 
+    }
 }
 
 fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
@@ -215,7 +231,7 @@ fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
         map(plus_tag, |_| Infix::Plus), 
         map(minus_tag, |_| Infix::Minus), 
         map(divide_tag, |_| Infix::Divide), 
-        map(multiply_tag, |_| Infix::Multiply), 
+        map(multiply_tag, |_| Infix::Multiply),   
         map(equal_tag, |_| Infix::Equal), 
         map(pair(langle_tag, rangle_tag), |(_, _)| Infix::NotEqual), 
         map(pair(langle_tag, equal_tag), |(_, _)| Infix::LessThanEqual), 
@@ -227,36 +243,73 @@ fn parse_infix_tags(input: Tokens) -> IResult<Tokens, Infix> {
     ))(input)
 }
 
-fn parse_infix(input: Tokens) -> IResult<Tokens, Expr> {
-    map(
-        tuple((
-            alt((parse_expr, parse_block)), 
-            parse_infix_tags,
-            alt((parse_expr, parse_block)), 
-        )),
-        |(a, infix, b)| {
-            Expr::Infix(infix, Box::new(a), Box::new(b))
-        }
-    )(input)
+fn parse_pratt(input: Tokens, precedence: Precedence) -> IResult<Tokens, Expr> {
+    let (i1, left) = parse_atom_expr(input)?;
+    go_parse_pratt(i1, left, precedence)
 }
-    
-fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
+
+fn go_parse_pratt(input: Tokens, lhs: Expr, precedence: Precedence) -> IResult<Tokens, Expr> {
+    let (i1, t1) = take(1usize)(input)?; 
+    if t1.tok.is_empty() {
+        return Ok((i1, lhs)); 
+    } else {
+        match t1.tok[0] {
+            Token::EOF => Ok((input, lhs)), 
+            _ => {
+                match parse_infix_tags(input) {
+                    Ok((_, infix)) => {
+                        let p = infix_precedence(infix.clone()); 
+                        if precedence < p {
+                            let (i2, lhs2) = parse_infix(input, lhs)?;
+                            go_parse_pratt(i2, lhs2, precedence) 
+                        } else {
+                            Ok((input, lhs))
+                        }
+                    }, 
+                    _ => Ok((input, lhs))
+                }
+           }
+        }
+    }
+}
+
+fn parse_infix(input: Tokens, lhs: Expr) -> IResult<Tokens, Expr> {
+    let (_i1, t1) = take(1usize)(input)?;
+    if t1.tok.is_empty() {
+        Err(Err::Error(error_position!(input, ErrorKind::Tag)))
+    } else {
+        let (i2, infix) = parse_infix_tags(input)?;
+        let p = infix_precedence(infix.clone()); 
+        let (i3, rhs) = parse_pratt(i2, p)?;
+        Ok((i3, Expr::Infix(infix, Box::new(lhs), Box::new(rhs))))
+    }
+}
+
+fn parse_infix_expr(input: Tokens) -> IResult<Tokens, Expr> {
+    parse_pratt(input, Precedence::Lowest)
+}
+
+fn parse_atom_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
+        parse_paren_expr, 
         parse_error_expr, 
+        parse_prefix_expr,
         parse_func_expr, 
         parse_array_expr, 
-        parse_reference, 
+        parse_reference_expr, 
         parse_literal_expr, 
     ))(input)
 }
 
-pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
+fn parse_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
-        parse_infix, 
-        parse_prefix,
-        parse_block, 
-        parse_expr, 
+        parse_infix_expr, 
+        parse_atom_expr,
     ))(input)
+}
+
+pub fn parse(input: Tokens) -> IResult<Tokens, Expr> {
+    terminated(parse_expr, eof_tag)(input)
 }
 
 pub fn parse_str(s: &str) -> Result<Expr, Error> {
@@ -337,17 +390,17 @@ mod tests {
     fn test_infix() -> Result<(), Error> {
         assert_eq!(parse_str("1+1")?, Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
         assert_eq!(parse_str("(1+1)")?, Expr::Infix(Infix::Plus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 - 1)")?, Expr::Infix(Infix::Minus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 / 1)")?, Expr::Infix(Infix::Divide, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 * 1)")?, Expr::Infix(Infix::Multiply, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 ^ 1)")?, Expr::Infix(Infix::Exponent, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 = 1)")?, Expr::Infix(Infix::Equal, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 < 1)")?, Expr::Infix(Infix::LessThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 <= 1)")?, Expr::Infix(Infix::LessThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 > 1)")?, Expr::Infix(Infix::GreaterThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 >= 1)")?, Expr::Infix(Infix::GreaterThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 <> 1)")?, Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
-        assert_eq!(parse_str("1 <> 1)")?, Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 - 1")?, Expr::Infix(Infix::Minus, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 / 1")?, Expr::Infix(Infix::Divide, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 ^ 1")?, Expr::Infix(Infix::Exponent, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 * 1")?, Expr::Infix(Infix::Multiply, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 = 1")?, Expr::Infix(Infix::Equal, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 < 1")?, Expr::Infix(Infix::LessThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <= 1")?, Expr::Infix(Infix::LessThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 > 1")?, Expr::Infix(Infix::GreaterThan, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 >= 1")?, Expr::Infix(Infix::GreaterThanEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <> 1")?, Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
+        assert_eq!(parse_str("1 <> 1")?, Expr::Infix(Infix::NotEqual, Box::new(Expr::from(1.0)), Box::new(Expr::from(1.0)))); 
         assert_eq!(parse_str("(1+2)*(3+5)")?, Expr::Infix(
                 Infix::Multiply, 
                 Box::new(Expr::Infix(
@@ -389,6 +442,30 @@ mod tests {
                 Expr::from(1.0)
             ]
         }); 
+        Ok(())
+    }
+
+    #[test]
+    fn test_complex() -> Result<(), Error> {
+        assert_eq!(parse_str("1*1*1*1")?, 
+            Expr::Infix(
+                Infix::Multiply, 
+                Box::new(
+                    Expr::Infix(
+                        Infix::Multiply,
+                        Box::new(
+                            Expr::Infix(
+                                Infix::Multiply, 
+                                Box::new(Expr::from(1.0)),
+                                Box::new(Expr::from(1.0))
+                            )
+                        ), 
+                        Box::new(Expr::from(1.0))
+                    ) 
+                ), 
+                Box::new(Expr::from(1.0))
+            )
+        ); 
         Ok(())
     }
 }

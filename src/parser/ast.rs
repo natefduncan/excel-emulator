@@ -201,3 +201,14 @@ impl fmt::Display for Infix {
         }
     }
 }
+
+#[derive(PartialEq, PartialOrd, Debug, Clone)]
+pub enum Precedence {
+    Lowest, 
+    Comparison, 
+    Concat, 
+    PlusMinus, 
+    MultDiv, 
+    Exponent, 
+    Percent, 
+}

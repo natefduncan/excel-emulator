@@ -305,7 +305,10 @@ impl Lexer {
     pub fn lex_tokens(bytes: &[u8]) -> Result<Vec<Token>, Error> {
 		match lex_tokens(bytes)
 			.map(|(slice, result)| (slice, [&result[..]].concat())) {
-                Ok((_, tokens)) => Ok(tokens), 
+                Ok((_, mut tokens)) => {
+                    tokens.push(Token::EOF); 
+                    Ok(tokens)
+                }, 
                 _ => Err(Error::UnableToLex(String::from_utf8(bytes.to_vec()).unwrap()))
             }
 	}
@@ -331,6 +334,7 @@ mod tests {
             Token::RBrace,
             Token::Comma,
             Token::SemiColon,
+            Token::EOF, 
         ]);
         Ok(())
 	}
@@ -338,7 +342,7 @@ mod tests {
     #[test]
     fn test_strings() -> Result<(), Error> {
         assert_eq!(lex(b"\"this is a test\"")?, vec![
-            Token::Text(String::from("this is a test")), 
+            Token::Text(String::from("this is a test")), Token::EOF
         ]);
         assert_eq!(lex(b"\"this\", \"is\" \"a\" \"test\"")?, vec![
             Token::Text(String::from("this")), 
@@ -346,6 +350,7 @@ mod tests {
             Token::Text(String::from("is")), 
             Token::Text(String::from("a")), 
             Token::Text(String::from("test")), 
+            Token::EOF, 
         ]);
         Ok(())
     }
@@ -353,75 +358,75 @@ mod tests {
     #[test]
     fn test_ints() -> Result<(), Error> {
         assert_eq!(lex(b"123")?, vec![
-            Token::Integer(123), 
+            Token::Integer(123), Token::EOF
         ]); 
         assert_eq!(lex(b"0.05")?, vec![
-            Token::Float(0.05)
+            Token::Float(0.05), Token::EOF
         ]); 
         assert_eq!(lex(b"12.30")?, vec![
-            Token::Float(12.30),
+            Token::Float(12.30), Token::EOF
         ]); 
         Ok(())
     }
 
     #[test]
     fn test_errors() -> Result<(), Error> {
-        assert_eq!(lex(b"#NUM!")?, vec![Token::Num]); 
-        assert_eq!(lex(b"#DIV/0!")?, vec![Token::Div]); 
-        assert_eq!(lex(b"#VALUE!")?, vec![Token::Value]); 
-        assert_eq!(lex(b"#REF!")?, vec![Token::Ref]); 
-        assert_eq!(lex(b"#NAME!")?, vec![Token::Name]); 
-        assert_eq!(lex(b"#N/A")?, vec![Token::NA]); 
-        assert_eq!(lex(b"#GETTING_DATA")?, vec![Token::GettingData]); 
+        assert_eq!(lex(b"#NUM!")?, vec![Token::Num, Token::EOF]); 
+        assert_eq!(lex(b"#DIV/0!")?, vec![Token::Div, Token::EOF]); 
+        assert_eq!(lex(b"#VALUE!")?, vec![Token::Value, Token::EOF]); 
+        assert_eq!(lex(b"#REF!")?, vec![Token::Ref, Token::EOF]); 
+        assert_eq!(lex(b"#NAME!")?, vec![Token::Name, Token::EOF]); 
+        assert_eq!(lex(b"#N/A")?, vec![Token::NA, Token::EOF]); 
+        assert_eq!(lex(b"#GETTING_DATA")?, vec![Token::GettingData, Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_bool() -> Result<(), Error> {
-        assert_eq!(lex(b"TRUE")?, vec![Token::Boolean(true)]); 
-        assert_eq!(lex(b"FALSE")?, vec![Token::Boolean(false)]); 
+        assert_eq!(lex(b"TRUE")?, vec![Token::Boolean(true), Token::EOF]); 
+        assert_eq!(lex(b"FALSE")?, vec![Token::Boolean(false), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_multisheet() -> Result<(), Error> {
-        assert_eq!(lex(b"test:test!")?, vec![Token::MultiSheet(String::from("test:test"))]); 
+        assert_eq!(lex(b"test:test!")?, vec![Token::MultiSheet(String::from("test:test")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_sheet() -> Result<(), Error> {
-        assert_eq!(lex(b"'Test'!")?, vec![Token::Sheet(String::from("Test"))]); 
+        assert_eq!(lex(b"'Test'!")?, vec![Token::Sheet(String::from("Test")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_vrange() -> Result<(), Error> {
-        assert_eq!(lex(b"A:A")?, vec![Token::VRange(String::from("A:A"))]); 
+        assert_eq!(lex(b"A:A")?, vec![Token::VRange(String::from("A:A")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_hrange() -> Result<(), Error> {
-        assert_eq!(lex(b"1:1")?, vec![Token::HRange(String::from("1:1"))]); 
+        assert_eq!(lex(b"1:1")?, vec![Token::HRange(String::from("1:1")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_range() -> Result<(), Error> {
-        assert_eq!(lex(b"A1:A1")?, vec![Token::Range(String::from("A1:A1"))]); 
+        assert_eq!(lex(b"A1:A1")?, vec![Token::Range(String::from("A1:A1")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_cell() -> Result<(), Error> {
-        assert_eq!(lex(b"A1")?, vec![Token::Cell(String::from("A1"))]); 
+        assert_eq!(lex(b"A1")?, vec![Token::Cell(String::from("A1")), Token::EOF]); 
         Ok(())
     }
 
     #[test]
     fn test_ident() -> Result<(), Error> {
-        assert_eq!(lex(b"test")?, vec![Token::Ident("test".to_string())]); 
+        assert_eq!(lex(b"test")?, vec![Token::Ident("test".to_string()), Token::EOF]); 
         Ok(())
     }
 }
