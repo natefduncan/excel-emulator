@@ -70,6 +70,7 @@ impl Book {
         self.load_sheet_names()?; 
         self.load_shared_strings()?; 
         self.load_styles()?; 
+        self.load_sheets_dimensions()?; 
         self.load_sheets()?; 
         Ok(())
     }
@@ -162,11 +163,19 @@ impl Book {
 
     pub fn load_sheets(&mut self) -> Result<(), Error> { 
         for sheet_id in 0..self.sheets.len() {
-            self.load_sheet(sheet_id)?
+            self.load_sheet(sheet_id)?; 
         }
         Ok(()) 
     }
-    pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<(), Error> {
+
+    pub fn load_sheets_dimensions(&mut self) -> Result<(), Error> {
+        for sheet_id in 0..self.sheets.len() {
+            self.load_sheet_dimensions(sheet_id)?; 
+        }
+        Ok(()) 
+    }
+
+    pub fn load_sheet_dimensions(&mut self, sheet_idx: usize) -> Result<(), Error> {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
@@ -183,8 +192,23 @@ impl Book {
                                 self.cells.insert(sheet, Array::from_elem((num_rows + row - 1, num_cols + column - 1), Value::Empty)); 
                             }
                         }
+                        break
                     }, 
-                    Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) if e.name() == b"c" => {
+                    _ => {}
+                }
+            }
+        } 
+        Ok(())
+    }
+
+    pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<(), Error> {
+        let mut buf = Vec::new();
+        if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
+            let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
+            let mut flags = SheetFlags::new(); 
+            loop {
+                match reader.read_event(&mut buf) {
+                   Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) if e.name() == b"c" => {
                         for a in e.attributes() {
                             let a = a.unwrap(); 
                             match a.key {
@@ -251,7 +275,7 @@ impl Book {
                             let cell_text = Book::decode_text_event(&reader, e); 
                             let value: Value; 
                             if flags.is_formula {
-                                value = Value::Formula(format!("={}", &cell_text.replace("_xlfn.", "").to_owned())); 
+                                value = Value::Formula(format!("={}", &cell_text.replace("_xlfn.", "").to_owned()));
                                 if flags.is_shared_formula {
                                     flags.shared_formulas.push(
                                         (Cell::from(flags.current_cell_reference.clone()), cell_text.clone())
@@ -282,7 +306,7 @@ impl Book {
                                 self.dependencies.add_formula(CellId {sheet: sheet_idx, row, column}, &value.to_string(), &self.sheets)?; 
                             }
                             self.cells.get_mut(sheet).unwrap()[[row-1, column-1]] = value; 
-                           flags.reset(); 
+                            flags.reset(); 
                         }
                     }, 
                     Ok(Event::Eof) => break, 
