@@ -89,14 +89,17 @@ impl DependencyTree {
                 let sheet_id = match sheet {
                     Some(s) => {
                         sheets.iter().position(|x|  {
-                            let Sheet(x) = x; 
-                            x == &s
+                            x.name == s
                         }).unwrap()
                     }, 
                     None => cell.sheet
                 }; 
+                let sheet: &Sheet = sheets.get(sheet_id).unwrap(); 
                 let reference = Reference::from(reference); 
-                for c in reference.get_cells() {
+                let (start_row, start_col, mut num_rows, mut num_cols) = reference.get_dimensions(); 
+                num_rows = num_rows.min(sheet.max_rows);
+                num_cols = num_cols.min(sheet.max_columns); 
+                for c in Reference::get_cells_from_dim(start_row, start_col, num_rows, num_cols) {
                     self.add_precedent(&CellId { sheet: sheet_id, row: c.0, column: c.1 }, &cell); 
                 }
             },

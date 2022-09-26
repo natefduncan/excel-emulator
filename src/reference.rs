@@ -175,8 +175,7 @@ impl Reference {
         )
     }
 
-    pub fn get_cells(&self) -> Vec<(usize, usize)> {
-        let (start_row, start_column, num_rows, num_cols) = self.get_dimensions();
+    pub fn get_cells_from_dim(start_row: usize, start_column: usize, num_rows: usize, num_cols: usize) -> Vec<(usize, usize)> {
         let mut output: Vec<(usize, usize)> = vec![]; 
         for row in start_row..(start_row + num_rows) {
             for column in start_column..(start_column + num_cols) {
@@ -184,6 +183,11 @@ impl Reference {
             }
         }
         output
+    }
+
+    pub fn get_cells(&self) -> Vec<(usize, usize)> {
+        let (start_row, start_column, num_rows, num_cols) = self.get_dimensions();
+        Self::get_cells_from_dim(start_row, start_column, num_rows, num_cols)
     }
 
     pub fn offset(&mut self, offset: (i32, i32)) {
