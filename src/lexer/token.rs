@@ -48,6 +48,7 @@ pub enum Token {
     LBracket,
     RBracket,
     Ident(String), 
+    EOF
 }
 
 impl PartialEq for Token {
@@ -105,7 +106,8 @@ impl fmt::Display for Token {
             Token::LBrace => write!(f, "{{"), 
             Token::RBrace => write!(f, "}}"), 
             Token::LBracket => write!(f, "["), 
-            Token::RBracket => write!(f, "]")
+            Token::RBracket => write!(f, "]"), 
+            Token::EOF => write!(f, ""), 
         }
     }
 }
