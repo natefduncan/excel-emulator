@@ -204,9 +204,11 @@ impl fmt::Display for Infix {
 
 #[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub enum Precedence {
-    PLowest,
-    PEquals,
-    PLessGreater,
-    PSum,
-    PProduct,
+    Lowest, 
+    Comparison, 
+    Concat, 
+    PlusMinus, 
+    MultDiv, 
+    Exponent, 
+    Percent, 
 }
