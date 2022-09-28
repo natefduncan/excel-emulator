@@ -316,11 +316,10 @@ fn iffunc(condition: Value, a: Value, b: Value) -> Value {
 #[function]
 fn xnpv(rate: Value, values: Value, dates: Value) -> Value {
     let rate: f64 = rate.as_num(); 
-    let values: Vec<f64> = values.as_array().iter().map(|x| x.as_num()).collect(); 
     let dates: Vec<NaiveDate> = dates.as_array().iter().map(|x| x.as_date()).collect(); 
-    let start_date = dates.get(0).unwrap().clone(); 
+    let start_date = *dates.get(0).unwrap(); 
     Value::from(
-        values
+        values.as_array().iter().map(|x| x.as_num())
         .into_iter()
         .zip(
             dates
@@ -365,8 +364,8 @@ fn pmt(rate: Value, nper: Value, pv: Value, fv: Option<Value>, f_type: Option<Va
     let rate = rate.as_num();
     let nper = nper.as_num();
     let pv = pv.as_num();
-    let fv = fv.unwrap_or(Value::from(0.0)).as_num(); 
-    let f_type = f_type.unwrap_or(Value::from(0.0)).as_num();
+    let fv = fv.unwrap_or_else(|| Value::from(0.0)).as_num(); 
+    let f_type = f_type.unwrap_or_else(|| Value::from(0.0)).as_num();
     Value::from(
         rate*(fv*-1.0+pv*(1.0+rate).powf(nper))/((1.0+rate*f_type)*(1.0-(1.0+rate).powf(nper)))
     )
@@ -379,13 +378,13 @@ fn counta(args: Vec<Value>) -> Value {
             match v {
                 Value::Array(arr) => {
                     s + arr.into_iter().fold(0, |s, v| match v {
-                        Value::Empty => s + 0, 
+                        Value::Empty => s, 
                             _ => s + 1
                     })
                 },
                 Value::Array2(arr2) => {
                     s + arr2.into_raw_vec().into_iter().fold(0, |s, v| match v {
-                        Value::Empty => s + 0, 
+                        Value::Empty => s, 
                         _ => s + 1
                     })
                 }, 

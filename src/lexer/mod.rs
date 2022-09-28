@@ -201,7 +201,7 @@ fn lex_sheet(input: &[u8]) -> IResult<&[u8], Token> {
         )), 
         |s| {
             let c = complete_byte_slice_str_from_utf8(s);
-            c.map(|syntax| Token::Sheet(syntax.replace("'", "")))
+            c.map(|syntax| Token::Sheet(syntax.replace('\'', "")))
         }
     )(input)
 }

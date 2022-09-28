@@ -3,7 +3,6 @@ use zip::read::{ZipArchive, ZipFile};
 use std::fs::File;
 use std::fmt; 
 use std::io::BufReader; 
-use std::collections::HashMap; 
 use quick_xml::{
     Reader, 
     events::{
@@ -11,7 +10,7 @@ use quick_xml::{
         attributes::Attribute
     }, 
 };
-use ndarray::{Array2, arr2, Array, s, Axis, ArrayView}; 
+use ndarray::{Array2, Array, s, Axis, ArrayView}; 
 use crate::{
     evaluate::{
         value::Value, 
@@ -179,7 +178,6 @@ impl Book {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
-            let mut flags = SheetFlags::new(); 
             loop {
                 match reader.read_event(&mut buf) {
                     Ok(Event::Empty(ref e)) if e.name() == b"dimension" => {
@@ -355,20 +353,20 @@ impl Book {
     }
 
     pub fn get_mut_sheet_by_name<'a>(&'a mut self, s: &'a str) -> &'a mut Sheet {
-        let idx = self.sheets.iter().position(|x| &x.name == s).unwrap(); 
+        let idx = self.sheets.iter().position(|x| x.name == s).unwrap(); 
         self.get_mut_sheet_by_idx(idx)
     }
 
-    pub fn get_mut_sheet_by_idx<'a>(&'a mut self, idx: usize) -> &'a mut Sheet {
+    pub fn get_mut_sheet_by_idx(&mut self, idx: usize) -> &mut Sheet {
         self.sheets.get_mut(idx).unwrap()
     }
 
-    pub fn get_sheet_by_name<'a>(&'a self, s: String) -> &'a Sheet {
-        let idx = self.sheets.iter().position(|x| &x.name == s.as_str()).unwrap(); 
+    pub fn get_sheet_by_name(&self, s: String) -> &Sheet {
+        let idx = self.sheets.iter().position(|x| x.name == s.as_str()).unwrap(); 
         self.get_sheet_by_idx(idx)
     }
 
-    pub fn get_sheet_by_idx<'a>(&'a self, idx: usize) -> &'a Sheet {
+    pub fn get_sheet_by_idx(&self, idx: usize) -> &Sheet {
         self.sheets.get(idx).unwrap()
     }
 
@@ -457,7 +455,7 @@ impl Book {
         for cell_id in self.dependencies.get_order().iter() {
             match self.calculate_cell(cell_id) {
                 Ok(()) => {}, 
-                Err(err) => { return Err(Error::Calculation(cell_id.clone(), Box::new(err))) } 
+                Err(err) => { return Err(Error::Calculation(*cell_id, Box::new(err))) } 
             }
         }
         Ok(())
@@ -481,7 +479,7 @@ impl From<&str> for Sheet {
 impl From<String> for Sheet {
     fn from(s: String) -> Sheet {
         Sheet {
-            name: s.to_string(), 
+            name: s, 
             max_rows: 0, 
             max_columns: 0, 
             cells: Array::from_elem((0, 0), Value::Empty)

@@ -251,14 +251,14 @@ fn parse_pratt(input: Tokens, precedence: Precedence) -> IResult<Tokens, Expr> {
 fn go_parse_pratt(input: Tokens, lhs: Expr, precedence: Precedence) -> IResult<Tokens, Expr> {
     let (i1, t1) = take(1usize)(input)?; 
     if t1.tok.is_empty() {
-        return Ok((i1, lhs)); 
+        Ok((i1, lhs))
     } else {
         match t1.tok[0] {
             Token::EOF => Ok((input, lhs)), 
             _ => {
                 match parse_infix_tags(input) {
                     Ok((_, infix)) => {
-                        let p = infix_precedence(infix.clone()); 
+                        let p = infix_precedence(infix); 
                         if precedence < p {
                             let (i2, lhs2) = parse_infix(input, lhs)?;
                             go_parse_pratt(i2, lhs2, precedence) 
