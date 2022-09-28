@@ -354,13 +354,22 @@ impl Book {
         Style { number_format_id, apply_number_format }
     }
 
-    pub fn get_sheet_by_name(&self, s: &str) -> Sheet {
+    pub fn get_mut_sheet_by_name<'a>(&'a mut self, s: &'a str) -> &'a mut Sheet {
         let idx = self.sheets.iter().position(|x| &x.name == s).unwrap(); 
+        self.get_mut_sheet_by_idx(idx)
+    }
+
+    pub fn get_mut_sheet_by_idx<'a>(&'a mut self, idx: usize) -> &'a mut Sheet {
+        self.sheets.get_mut(idx).unwrap()
+    }
+
+    pub fn get_sheet_by_name<'a>(&'a self, s: String) -> &'a Sheet {
+        let idx = self.sheets.iter().position(|x| &x.name == s.as_str()).unwrap(); 
         self.get_sheet_by_idx(idx)
     }
 
-    pub fn get_sheet_by_idx(&self, idx: usize) -> Sheet {
-        self.sheets[idx].clone()
+    pub fn get_sheet_by_idx<'a>(&'a self, idx: usize) -> &'a Sheet {
+        self.sheets.get(idx).unwrap()
     }
 
     pub fn resolve_str_ref(&self, s: &str) -> Result<Array2<Value>, Error> {
@@ -375,8 +384,8 @@ impl Book {
     pub fn resolve_ref(&self, expr: Expr) -> Result<Array2<Value>, Error> {
         if let Expr::Reference {sheet, reference} = expr {
             let (mut row, mut col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();
-            let sheet: Sheet = match sheet {
-                Some(s) => self.get_sheet_by_name(&s), 
+            let sheet: &Sheet = match sheet {
+                Some(s) => self.get_sheet_by_name(s), 
                 None => self.get_sheet_by_idx(self.current_sheet)
             };
             if num_rows == usize::MAX { 
@@ -413,7 +422,7 @@ impl Book {
     pub fn expand_offsets(&mut self) -> Result<(), Error> {
         let offsets = self.dependencies.offsets.clone(); 
         for v in offsets.iter() {
-            let sheet: Sheet = self.get_sheet_by_idx(v.sheet); 
+            let sheet: &Sheet = self.get_sheet_by_idx(v.sheet); 
             let value: &Value = &sheet.cells[[v.row-1, v.column-1]];
             let formula_text = value.as_text(); 
             let mut chars = formula_text.chars(); 
@@ -429,15 +438,16 @@ impl Book {
     }
 
     pub fn calculate_cell(&mut self, cell_id: &CellId) -> Result<(), Error> {
-            let sheet: &mut Sheet = &mut self.get_sheet_by_idx(cell_id.sheet); 
+            let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
             if let Value::Formula(formula_text) = cell_value.clone() {
                 self.current_sheet = cell_id.sheet; 
                 let mut chars = formula_text.chars(); // Remove = at beginning
                 chars.next();
                 let expr: Expr = parse_str(chars.as_str())?; 
-                let value = evaluate_expr_with_context(expr, self)?;
-                sheet.cells[[cell_id.row-1, cell_id.column-1]] = value; 
+                let new_value = evaluate_expr_with_context(expr, self)?;
+                let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
+                sheet.cells[[cell_id.row-1, cell_id.column-1]] = new_value; 
             }
             Ok(())
     } 
@@ -542,9 +552,9 @@ mod tests {
     use crate::errors::Error; 
     use ndarray::arr2; 
 
-    fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> &'a Value {
-        let sheet: Sheet = book.get_sheet_by_name(sheet_name); 
-        &book.cells.get(&sheet).unwrap()[[row, column]]
+    fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> Value {
+        let sheet: &Sheet = book.get_sheet_by_name(sheet_name.to_string()); 
+        sheet.cells[[row, column]].clone()
     }
 
     #[test]
@@ -560,13 +570,13 @@ mod tests {
     fn test_cells() {
         let mut book = Book::from("assets/data_types.xlsx"); 
         book.load().expect("Could not load workbook"); 
-        assert_eq!(get_cell(&book, "test 1", 0, 0), &Value::from("Text")); 
-        assert_eq!(get_cell(&book, "test 1", 1, 0), &Value::from("a")); 
-        assert_eq!(get_cell(&book, "test 1", 2, 0), &Value::from("b")); 
-        assert_eq!(get_cell(&book, "test 1", 3, 0), &Value::from("c")); 
-        assert_eq!(get_cell(&book, "test 1", 1, 4), &Value::Formula(String::from("=B2+1"))); 
-        assert_eq!(get_cell(&book, "test 1", 2, 4), &Value::Formula(String::from("=B3+1"))); 
-        assert_eq!(get_cell(&book, "test 1", 3, 4), &Value::Formula(String::from("=(B4+1)"))); 
+        assert_eq!(get_cell(&book, "test 1", 0, 0), Value::from("Text")); 
+        assert_eq!(get_cell(&book, "test 1", 1, 0), Value::from("a")); 
+        assert_eq!(get_cell(&book, "test 1", 2, 0), Value::from("b")); 
+        assert_eq!(get_cell(&book, "test 1", 3, 0), Value::from("c")); 
+        assert_eq!(get_cell(&book, "test 1", 1, 4), Value::Formula(String::from("=B2+1"))); 
+        assert_eq!(get_cell(&book, "test 1", 2, 4), Value::Formula(String::from("=B3+1"))); 
+        assert_eq!(get_cell(&book, "test 1", 3, 4), Value::Formula(String::from("=(B4+1)"))); 
     }
 
     #[test]
