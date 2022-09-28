@@ -1,5 +1,6 @@
 use quick_xml::events::BytesStart;
 use zip::read::{ZipArchive, ZipFile};
+use indicatif::ProgressBar; 
 use std::fs::File;
 use std::fmt; 
 use std::io::BufReader; 
@@ -203,6 +204,9 @@ impl Book {
 
     pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<(), Error> {
         let mut buf = Vec::new();
+        let max_rows = self.get_sheet_by_idx(sheet_idx).max_rows.clone(); 
+        let max_columns = self.get_sheet_by_idx(sheet_idx).max_columns.clone(); 
+        let pb = ProgressBar::new((max_rows * max_columns) as u64); 
         if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             let mut flags = SheetFlags::new(); 
@@ -307,6 +311,7 @@ impl Book {
 
                             let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
                             sheet.cells[[row-1, column-1]] = value; 
+                            pb.set_position((row * max_columns + column) as u64); 
                             flags.reset(); 
                         }
                     }, 

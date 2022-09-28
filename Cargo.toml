@@ -26,6 +26,7 @@ syn = { version = "1.0.99", features = ["full", "extra-traits"] }
 thiserror = "1.0.31"
 zip = "0.6.2"
 libmath = "0.2.1"
+indicatif = "0.17.1"
 
 [build-dependencies]
 lalrpop = { git = "https://github.com/lalrpop/lalrpop.git", branch = "master" }
