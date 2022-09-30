@@ -186,7 +186,7 @@ impl Book {
                             let a = a.unwrap(); 
                             if let b"ref" = a.key {
                                 let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
-                                let (row, column, num_rows, num_cols) = Reference::from(dimension).get_dimensions(); 
+                                let (row, column, num_rows, num_cols) = Reference::from(dimension.clone()).get_dimensions(); 
                                 let sheet: &mut Sheet = self.sheets.get_mut(sheet_idx).unwrap();
                                 sheet.cells = Array::from_elem((num_rows + row - 1, num_cols + column - 1), Value::Empty); 
                                 sheet.max_rows = num_rows + row; 
@@ -212,12 +212,13 @@ impl Book {
             let mut flags = SheetFlags::new(); 
             loop {
                 match reader.read_event(&mut buf) {
-                   Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) if e.name() == b"c" => {
+                    Ok(Event::Start(ref e)) if e.name() == b"c" => {
                         for a in e.attributes() {
                             let a = a.unwrap(); 
                             match a.key {
                                 b"r" => {
                                     // Cell reference
+                                    flags.reset(); 
                                     flags.current_cell_reference = a.unescape_and_decode_value(&reader).unwrap();
                                 }, 
                                 b"t" => {
@@ -301,11 +302,10 @@ impl Book {
                             } else {
                                 value = Value::Empty; 
                             }
-                            // println!("{}, {}", flags.current_cell_reference, value); 
                             let cell = Cell::from(flags.current_cell_reference.clone()); 
                             let (row, column): (usize, usize) = cell.as_tuple(); 
  
-                           if value.is_formula() {
+                            if value.is_formula() {
                                 self.dependencies.add_formula(CellId::from((sheet_idx, row, column, 1, 1)), &value.to_string(), &self.sheets)?; 
                             }
 
@@ -316,7 +316,8 @@ impl Book {
                         }
                     }, 
                     Ok(Event::Eof) => break, 
-                    _ => {} 
+                    _ => {
+                    } 
                 }
             }
         }
@@ -501,7 +502,7 @@ impl fmt::Display for Sheet {
 #[derive(Debug)]
 pub struct SharedString(String); 
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Style {
     pub number_format_id: usize, 
     pub apply_number_format: bool 
