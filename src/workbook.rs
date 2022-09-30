@@ -429,6 +429,7 @@ impl Book {
             let sheet: &Sheet = self.get_sheet_by_idx(v.sheet); 
             let value: &Value = &sheet.cells[[v.row-1, v.column-1]];
             let formula_text = value.as_text(); 
+            // println!("{:?} -> {:?}", v, formula_text); 
             let mut chars = formula_text.chars(); 
             chars.next(); 
             if let Expr::Func { name: _, args } = parse_str(chars.as_str())? {
@@ -442,22 +443,30 @@ impl Book {
     }
 
     pub fn calculate_cell(&mut self, cell_id: &CellId) -> Result<(), Error> {
-            let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
-            let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
-            if let Value::Formula(formula_text) = cell_value.clone() {
-                self.current_sheet = cell_id.sheet; 
-                let mut chars = formula_text.chars(); // Remove = at beginning
-                chars.next();
-                let expr: Expr = parse_str(chars.as_str())?; 
-                let new_value = evaluate_expr_with_context(expr, self)?;
-                let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
-                sheet.cells[[cell_id.row-1, cell_id.column-1]] = new_value; 
+        let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
+        let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
+        if let Value::Formula(formula_text) = cell_value.clone() {
+            self.current_sheet = cell_id.sheet; 
+            let mut chars = formula_text.chars(); // Remove = at beginning
+            chars.next();
+            let expr: Expr = parse_str(chars.as_str())?; 
+            let new_value_result = evaluate_expr_with_context(expr, self);
+            match new_value_result {
+                Ok(new_value) => {
+                    let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
+                    sheet.cells[[cell_id.row-1, cell_id.column-1]] = new_value; 
+                    return Ok(()); 
+                }, 
+                Err(e) => {
+                    return Err(Error::Calculation(cell_id.clone(), Box::new(e))); 
+                }
             }
-            Ok(())
-    } 
+        }
+        Ok(())
+    }
 
     pub fn calculate(&mut self) -> Result<(), Error> {
-        self.expand_offsets()?; 
+        // self.expand_offsets()?; 
         for cell_id in self.dependencies.get_order().iter() {
             match self.calculate_cell(cell_id) {
                 Ok(()) => {}, 
