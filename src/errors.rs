@@ -16,6 +16,6 @@ pub enum Error {
     #[error("Unable to lex str {0}")]
     UnableToLex(String), 
 
-    #[error("Offset can't be evaluated")]
-    Offset(Box<Expr>)
+    #[error("Dependency tree changed.")]
+    Volatile(Box<Expr>)
 }
