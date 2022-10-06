@@ -21,7 +21,7 @@ pub struct CellId {
     pub column: usize,
     pub num_row: usize, 
     pub num_col: usize, 
-    
+    pub calculated: Option<bool>
 }
 
 impl PartialOrd for CellId {
@@ -44,9 +44,9 @@ impl Ord for CellId {
     }
 }
 
-impl From<(usize, usize, usize, usize, usize)> for CellId {
-    fn from((sheet, row, column, num_row, num_col) : (usize, usize, usize, usize, usize)) -> CellId {
-        CellId { sheet, row, column, num_row, num_col }
+impl From<(usize, usize, usize, usize, usize, Option<bool>)> for CellId {
+    fn from((sheet, row, column, num_row, num_col, calculated) : (usize, usize, usize, usize, usize, Option<bool>)) -> CellId {
+        CellId { sheet, row, column, num_row, num_col, calculated }
     }
 }
 
@@ -195,9 +195,9 @@ mod tests {
     #[test]
     fn test_precedent() {
         let mut tree = DependencyTree::new(); 
-        let a = CellId::from((0,0,0,1,1)); 
-        let b = CellId::from((1,0,0,1,1)); 
-        let c = CellId::from((2,0,0,1,1)); 
+        let a = CellId::from((0,0,0,1,1, Some(false))); 
+        let b = CellId::from((1,0,0,1,1, Some(false))); 
+        let c = CellId::from((2,0,0,1,1, Some(false))); 
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&c, &b); // C must calculate before B 
         assert!(tree.is_dependent_of(&b, &a)); 
@@ -207,9 +207,9 @@ mod tests {
     #[test]
     fn test_order() {
         let mut tree = DependencyTree::new(); 
-        let a = CellId::from((0,0,0,1,1)); 
-        let b = CellId::from((1,0,0,1,1)); 
-        let c = CellId::from((2,0,0,1,1)); 
+        let a = CellId::from((0,0,0,1,1, Some(false))); 
+        let b = CellId::from((1,0,0,1,1, Some(false))); 
+        let c = CellId::from((2,0,0,1,1, Some(false))); 
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&b, &c); // B must calculate before C 
         let mut order: Vec<CellId> = tree.get_order(); 
