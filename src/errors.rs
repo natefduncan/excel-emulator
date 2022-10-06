@@ -1,5 +1,6 @@
 use thiserror::Error; 
 use crate::dependency::CellId; 
+use crate::parser::ast::Expr; 
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -13,5 +14,8 @@ pub enum Error {
     UnableToParse(String), 
 
     #[error("Unable to lex str {0}")]
-    UnableToLex(String)
+    UnableToLex(String), 
+
+    #[error("Offset can't be evaluated")]
+    Offset(Box<Expr>)
 }
