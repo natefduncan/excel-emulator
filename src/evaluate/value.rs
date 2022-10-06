@@ -25,7 +25,7 @@ pub enum Value {
     Array2(Array2Type), 
     Formula(TextType), 
     Error(ErrorType), 
-    Ref { sheet: Option<String>, reference: Reference }, 
+    Range { sheet: Option<String>, reference: Reference, value: Option<Box<Value>> }, 
     Empty
 }
 
@@ -48,7 +48,7 @@ impl Value {
     pub fn is_array2(&self) -> bool { matches!(self, Value::Array2(_)) }
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
     pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
-    pub fn is_ref(&self) -> bool { matches!(self, Value::Ref {sheet: _, reference: _}) }
+    pub fn is_range(&self) -> bool { matches!(self, Value::Range {sheet: _, reference: _, value: _}) }
     pub fn is_err(&self) -> bool { matches!(self, Value::Error(_)) }
 
     pub fn ensure_single(&self) -> Value {
@@ -151,7 +151,7 @@ impl fmt::Display for Value {
                 })
             }, 
             Value::Empty => { write!(f, "Empty") }
-            Value::Ref {sheet, reference} => { 
+            Value::Range {sheet, reference, value: _} => { 
                 match sheet {
                     Some(s) => write!(f, "{}!{}", s, reference), 
                     None => write!(f, "{}", reference)
