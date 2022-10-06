@@ -16,7 +16,6 @@ use crate::{
     evaluate::{
         value::Value, 
         evaluate_expr_with_context, 
-        offset_expr
     }, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
@@ -264,7 +263,8 @@ impl Book {
                                 let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
                                 let (row, column): (usize, usize) = current_cell.as_tuple(); 
                                 sheet.cells[[row-1, column-1]] = adjusted_formula.clone(); 
-                                self.dependencies.add_formula(CellId::from((sheet_idx, row, column, 1, 1)), &adjusted_formula.to_string(), &self.sheets)?; 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                self.dependencies.add_formula(cell_id, &adjusted_formula.to_string(), &self.sheets)?; 
                                 flags.reset(); 
                             }
                         }
@@ -306,7 +306,8 @@ impl Book {
                             let (row, column): (usize, usize) = cell.as_tuple(); 
  
                             if value.is_formula() {
-                                self.dependencies.add_formula(CellId::from((sheet_idx, row, column, 1, 1)), &value.to_string(), &self.sheets)?; 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                self.dependencies.add_formula(cell_id, &value.to_string(), &self.sheets)?; 
                             }
 
                             let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
