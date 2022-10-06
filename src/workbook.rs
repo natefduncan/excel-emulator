@@ -188,7 +188,7 @@ impl Book {
                                 let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
                                 let (row, column, num_rows, num_cols) = Reference::from(dimension.clone()).get_dimensions(); 
                                 let sheet: &mut Sheet = self.sheets.get_mut(sheet_idx).unwrap();
-                                sheet.cells = Array::from_elem((num_rows + row - 1, num_cols + column - 1), Value::Empty); 
+                                sheet.cells = Array::from_elem((num_rows + row, num_cols + column), Value::Empty); 
                                 sheet.max_rows = num_rows + row; 
                                 sheet.max_columns = num_cols + column; 
                             }
