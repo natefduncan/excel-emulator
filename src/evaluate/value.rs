@@ -64,6 +64,7 @@ impl Value {
             Value::Array2(arr2) => { // Assume single cell
                 arr2[[0,0]].as_num()
             }, 
+            Value::Empty => 0.0, 
             _ => panic!("{} cannot be converted to a number.", self)
         }
     }
