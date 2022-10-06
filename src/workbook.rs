@@ -16,6 +16,7 @@ use crate::{
     evaluate::{
         value::Value, 
         evaluate_expr_with_context, 
+        ensure_non_range
     }, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
@@ -425,11 +426,9 @@ impl Book {
     }
 
     pub fn calculate_cell(&mut self, cell_id: &CellId) -> Result<(), Error> {
-        println!("Calculating: {:?}", cell_id); 
         if ! cell_id.calculated.unwrap_or(true) {
             let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
-            println!("Cell Value: {:?}", cell_value.clone()); 
             if let Value::Formula(formula_text) = cell_value.clone() {
                 self.current_sheet = cell_id.sheet; 
                 let mut chars = formula_text.chars(); // Remove = at beginning
@@ -439,7 +438,7 @@ impl Book {
                 match new_value_result {
                     Ok(new_value) => {
                         let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
-                        sheet.cells[[cell_id.row-1, cell_id.column-1]] = new_value; 
+                        sheet.cells[[cell_id.row-1, cell_id.column-1]] = ensure_non_range(new_value); 
                         return Ok(()); 
                     }, 
                     Err(e) => {
@@ -462,7 +461,6 @@ impl Book {
 
     pub fn calculate(&mut self) -> Result<(), Error> {
         loop {
-            println!("{:?}", "LOOP"); 
             let mut calculated = true; 
             for cell_id in self.dependencies.get_order().iter_mut() {
                 match self.calculate_cell(cell_id) {
