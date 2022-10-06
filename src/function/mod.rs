@@ -246,7 +246,6 @@ fn floor(x: Value, _significance: Value) -> Value {
  * conversion to an actual value happens higher up the evaluation chain. 
 */
 pub fn index(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
-    println!("{:?}", args); 
 	let mut arg_values = args.into_iter(); 
 	let array: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book)?; // This can be a range or an array
 	let row_num: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book)?; 
