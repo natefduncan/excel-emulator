@@ -285,18 +285,19 @@ pub fn index(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
 } 
 
 pub fn offset(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
-	if let Expr::Reference { sheet, reference } = args.get(0).unwrap() { 
-		let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book)?;
-		let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book)?; 
+    let array = evaluate_expr_with_context(args.get(0).unwrap().clone(), book)?; 
+	if let Value::Range { sheet, reference, value: _ } = array { 
+		let rows = ensure_non_range(evaluate_expr_with_context(args.get(1).unwrap().clone(), book)?);
+		let cols = ensure_non_range(evaluate_expr_with_context(args.get(2).unwrap().clone(), book)?); 
 		let height = args.get(3); 
 		let height_opt: Option<usize> = height.map(|h| {
-			evaluate_expr_with_context(h.clone(), book).unwrap().as_num() as usize
+			ensure_non_range(evaluate_expr_with_context(h.clone(), book).unwrap()).as_num() as usize
 		}); 
 		let width = args.get(4); 
 		let width_opt: Option<usize> = width.map(|w| {
-			evaluate_expr_with_context(w.clone(), book).unwrap().as_num() as usize
+			ensure_non_range(evaluate_expr_with_context(w.clone(), book).unwrap()).as_num() as usize
 		}); 
-		let new_reference = offset_reference(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
+		let new_reference = offset_reference(&mut reference.clone(), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         let new_expr = Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }; 
         if book.is_calculated(new_expr.clone()) {
             let reference_value = match evaluate_expr_with_context(new_expr.clone(), book) {
