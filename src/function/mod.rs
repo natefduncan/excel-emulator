@@ -2,11 +2,15 @@ pub mod xirr;
 
 use crate::{
     evaluate::{
+        evaluate_expr_with_context, 
+        ensure_non_range,
         value::Value, 
     }, 
     reference::Reference, 
     cell::Cell, 
     errors::Error, 
+    parser::ast::Expr, 
+    workbook::Book,
 }; 
 use function_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
@@ -23,7 +27,6 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"MAX" => Ok(Box::new(Max::from(args)).evaluate()),	
 		"MIN" => Ok(Box::new(Min::from(args)).evaluate()),	
 		"MATCH" => Ok(Box::new(Matchfn::from(args)).evaluate()),	
-		"INDEX" => Ok(Box::new(Index::from(args)).evaluate()),	
 		"DATE" => Ok(Box::new(Date::from(args)).evaluate()),	
 		"FLOOR" => Ok(Box::new(Floor::from(args)).evaluate()),	
 		"IFERROR" => Ok(Box::new(Iferror::from(args)).evaluate()),	
@@ -45,7 +48,7 @@ pub trait Function {
    fn evaluate(self) -> Value; 
 }
 
-pub fn offset(r: &mut Reference, rows: i32, cols: i32, height: Option<usize>, width: Option<usize>) -> Reference {
+pub fn offset_reference(r: &mut Reference, rows: i32, cols: i32, height: Option<usize>, width: Option<usize>) -> Reference {
     if r.row() as i32 + rows < 0 || r.column() as i32 + cols < 0 {
         panic!("Invalid offset");
     } else {
@@ -236,9 +239,77 @@ fn floor(x: Value, _significance: Value) -> Value {
     Value::from(math::round::floor(x.as_num(), 0))
 }
 
-#[function]
-fn index(arr: Value, row_num: Value, col_num: Value) -> Value {
-    arr.as_array2()[[row_num.as_num() as usize - 1, col_num.as_num() as usize - 1]].clone()
+/*
+ * Index function can return either a value or a reference. 
+ * Excel treats them different depending on what the parent function needs.
+ * This function will always return a Value::Ref and require than 
+ * conversion to an actual value happens higher up the evaluation chain. 
+*/
+pub fn index(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
+    println!("{:?}", args); 
+	let mut arg_values = args.into_iter(); 
+	let array: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book)?; // This can be a range or an array
+	let row_num: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book)?; 
+	let col_num_option = arg_values.next(); 
+	let col_num = match col_num_option {
+		Some(expr) => evaluate_expr_with_context(expr, book)?,
+		None => Value::from(1.0)
+	}; 
+    let row_idx = row_num.as_num() as usize - 1;
+    let col_idx = col_num.as_num() as usize - 1; 
+    if let Value::Range { sheet, reference, value } = array {
+		let reference = Reference::from(reference); 
+		let (start_row, start_col, _, _) = reference.get_dimensions(); 
+
+        // If row value is zero, reference entire column.
+        // Start cell row index is zero. 
+		if row_num.as_num() == 0.0 {
+            let new_col = start_col + col_idx; 
+			return Ok(Value::Range { sheet: sheet.clone(), reference: Reference::from((0, new_col)), value: None }); 
+		}
+
+        // If column value is zero, reference entire column.
+        // Start cell column index is zero. 
+		if col_num.as_num() == 0.0 {
+            let new_row = start_row + row_idx; 
+			return Ok(Value::Range { sheet: sheet.clone(), reference: Reference::from((new_row, 0)), value: None }); 
+		}
+
+        let new_row = start_row + row_idx;  
+        let new_col = start_col + col_idx; 
+        let new_value: Value = value.unwrap().as_array2()[[row_idx, col_idx]].clone(); 
+        return Ok(Value::Range { sheet: sheet.clone(), reference: Reference::from((new_row, new_col)), value: Some(Box::new(new_value)) }); 
+	} else {
+		panic!("First argument must be a range."); 
+	}
+} 
+
+pub fn offset(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
+	if let Expr::Reference { sheet, reference } = args.get(0).unwrap() { 
+		let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book)?;
+		let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book)?; 
+		let height = args.get(3); 
+		let height_opt: Option<usize> = height.map(|h| {
+			evaluate_expr_with_context(h.clone(), book).unwrap().as_num() as usize
+		}); 
+		let width = args.get(4); 
+		let width_opt: Option<usize> = width.map(|w| {
+			evaluate_expr_with_context(w.clone(), book).unwrap().as_num() as usize
+		}); 
+		let new_reference = offset_reference(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
+        let new_expr = Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }; 
+        if book.is_calculated(new_expr.clone()) {
+            let reference_value = match evaluate_expr_with_context(new_expr.clone(), book) {
+                Ok(value) => Some(Box::new(ensure_non_range(value))), 
+                _ => panic!("New expression could not be evaluated: {}", new_expr.clone())
+            }; 
+            Ok(Value::Range { sheet: sheet.clone(), reference: new_reference, value:  reference_value})
+        } else {
+            Err(Error::Volatile(Box::new(new_expr)))
+        }
+    } else {
+        panic!("First expression must be a Reference.")
+    }
 }
 
 #[function]
