@@ -74,6 +74,9 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
         }
     });
 
+    let error_handling = fn_args.clone().into_iter().map(|fnarg| {
+    }); 
+
     let arg_declarations = fn_args.clone().into_iter().map(|fnarg| {
         if let FnArg::Typed(pat_type) = fnarg {
             let arg_name = *pat_type.pat.clone(); 
@@ -96,6 +99,7 @@ fn create_excel_function(ast: ItemFn) -> TokenStream {
 
         impl Function for #struct_name_ident {
             fn evaluate(self) -> Value {
+                #(#error_handling),*
                 Self::#function_name(#(#self_arg_declarations),*)
             }
         }
