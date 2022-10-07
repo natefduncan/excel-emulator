@@ -9,7 +9,7 @@ use crate::{
     reference::Reference, 
     cell::Cell, 
     errors::Error, 
-    parser::ast::Expr, 
+    parser::ast::{Expr, Error as ExcelError},  
     workbook::Book,
 }; 
 use function_macro::function; 
@@ -209,12 +209,12 @@ fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value
         lookup_array_mut.sort_by(|a, b| b.cmp(a)); // Descending Order
         match lookup_array.as_array().into_iter().enumerate().filter(|(_,v)| v >= &lookup_value).last() {
             Some(v) => { Value::from(v.0 + 1) },
-            _ => panic!("Match statement could not resolve.")
+            _ => Value::Error(ExcelError::NA)
         }
     } else if match_type.as_num() == 0.0 {
         match lookup_array_mut.into_iter().position(|v| v == lookup_value) {
             Some(v) => { Value::from(v + 1) }, 
-            _ => panic!("Match statement could not resolve.")
+            _ => Value::Error(ExcelError::NA)
         }
     } else {
         // Largest value that is less than or equal to the lookup-value
@@ -222,7 +222,7 @@ fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value
         lookup_array_mut.sort(); // Ascending Order
         match lookup_array_mut.into_iter().enumerate().filter(|(_, v)| v <= &lookup_value).last() {
             Some(v) => { Value::from(v.0 + 1) }, 
-            _ => panic!("Match statement could not resolve.")
+            _ => Value::Error(ExcelError::NA)
         }
     }
 }
