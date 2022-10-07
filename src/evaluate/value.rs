@@ -236,6 +236,7 @@ impl Add for Value {
             Value::Date(dt) => {
                 Value::from(dt.checked_add_signed(Duration::days(other.ensure_single().as_num() as i64)).unwrap())
             }, 
+            Value::Error(_) => self, 
             _ => panic!("{} cannot be added to {}.", other, self)
         }
     }
@@ -266,6 +267,7 @@ impl Sub for Value {
                     Value::from(dt.checked_sub_signed(Duration::days(other_single.as_num() as i64)).unwrap())
                 }
             }, 
+            Value::Error(_) => self, 
             _ => panic!("{} cannot be subtracted from {}.", other, self)
         }
     }
@@ -278,6 +280,7 @@ impl Mul for Value {
             Value::Num(x) => Value::from(x * other.ensure_single().as_num()), 
             Value::Bool(_) => Value::from(self.as_num() * other.ensure_single().as_num()), 
             Value::Empty => Value::from(0.0 * other.ensure_single().as_num()), 
+            Value::Error(_) => self, 
             // TODO
             _ => panic!("{} cannot be multiplied by {}.", self, other)
         }
@@ -289,8 +292,9 @@ impl Div for Value {
     fn div(self, other: Self) -> Self {
         match self.ensure_single() {
             Value::Num(x) => Value::from(x / other.ensure_single().as_num()), 
+            Value::Error(_) => self, 
             // TODO
-            _ => panic!("{} cannot be multiplied by {}.", self, other)
+            _ => panic!("{} cannot be divided by {}.", self, other)
         }
     }
 }
@@ -298,6 +302,9 @@ impl Div for Value {
 impl Neg for Value {
     type Output = Self;
     fn neg(self) -> Self {
-        Value::from(-self.as_num())
+        match self {
+            Value::Error(_) => self, 
+            _ => Value::from(-self.as_num()),
+        }
     }
 }
