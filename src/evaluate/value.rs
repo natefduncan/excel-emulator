@@ -200,7 +200,15 @@ impl PartialOrd for Value {
                 } else if self.is_text() {
                     Some(self.as_text().cmp(&other.as_text()))
                 } else if self.is_num() {
-                    self.as_num().partial_cmp(&other.as_num())
+                    let a = self.as_num();
+                    let b = other.as_num();
+                    if a > b {
+                        Some(Ordering::Greater)
+                    } else if a < b {
+                        Some(Ordering::Less)
+                    } else {
+                        Some(Ordering::Equal)
+                    }
                 } else if self.is_date() {
                     Some(self.as_date().cmp(&other.as_date()))
                 } else {
