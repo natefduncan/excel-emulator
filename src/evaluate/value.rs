@@ -143,7 +143,8 @@ impl fmt::Display for Value {
         match self {
             Value::Num(x) => { write!(f, "{}", x) }, 
             Value::Bool(x) => { write!(f, "{}", if *x { "TRUE" } else { "FALSE" }) }, 
-            Value::Text(x) | Value::Formula(x) => { write!(f, "{}", x) }, 
+            Value::Text(x) => { write!(f, "\"{}\"", x) },
+            Value::Formula(x) => { write!(f, "{}", x) }, 
             Value::Date(x) => { write!(f, "{}", x) }, 
             Value::Array(x) => {
                 x.iter().fold(Ok(()), |result, output| {
