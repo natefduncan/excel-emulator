@@ -118,7 +118,7 @@ impl Value {
         match self {
             Value::Array(arr) => arr.to_vec(),
             Value::Array2(arr2) => arr2.clone().into_raw_vec(), 
-            _ => panic!("{} cannot be converted to an array.", self)
+            c => vec![c.clone()], 
         }
     }
 
