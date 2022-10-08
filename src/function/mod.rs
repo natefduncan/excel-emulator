@@ -29,7 +29,11 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"MATCH" => Ok(Box::new(Matchfn::from(args)).evaluate()),	
 		"DATE" => Ok(Box::new(Date::from(args)).evaluate()),	
 		"FLOOR" => Ok(Box::new(Floor::from(args)).evaluate()),	
-		"IFERROR" => Ok(Box::new(Iferror::from(args)).evaluate()),	
+		"IFERROR" => {
+            let a = args.get(0).unwrap().clone(); 
+            let b = args.get(1).unwrap().clone(); 
+            Ok(Box::new(Iferror { a, b }).evaluate())
+        },	
 		"EOMONTH" => Ok(Box::new(Eomonth::from(args)).evaluate()),	
 		"SUMIFS" => Ok(Box::new(Sumifs::from(args)).evaluate()),	
 		"XIRR" => Ok(Box::new(Xirrfunc::from(args)).evaluate()),	
@@ -312,12 +316,18 @@ pub fn offset(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
     }
 }
 
-#[function]
-fn iferror(a: Value, b: Value) -> Value {
-    if a.is_err() {
-        b 
-    } else {
-        a
+struct Iferror {
+    a: Value, 
+    b: Value, 
+}
+
+impl Function for Iferror {
+    fn evaluate(self) -> Value {
+        if self.a.is_err() {
+            self.b 
+        } else {
+            self.a
+        }
     }
 }
 
