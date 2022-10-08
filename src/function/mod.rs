@@ -382,7 +382,10 @@ fn xirrfunc(values: Value, dates: Value) -> Value {
             .iter()
         ).map(|(v, d)| xirr::Payment { amount: v.as_num(), date: d.as_date() })
         .collect(); 
-    Value::from(xirr::compute(&payments).unwrap())
+    match xirr::compute(&payments) {
+        Ok(v) => Value::from(v), 
+        _ => Value::Error(ExcelError::Num), 
+    }
 }
 
 #[function]
