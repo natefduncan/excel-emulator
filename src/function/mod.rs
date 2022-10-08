@@ -3,6 +3,7 @@ pub mod xirr;
 use crate::{
     evaluate::{
         evaluate_expr_with_context, 
+        evaluate_str, 
         ensure_non_range,
         value::Value, 
     }, 
@@ -353,11 +354,20 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
     for i in (0..args.len()).step_by(2) {
         let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
         let criteria: &Value = args.get(i+1).unwrap(); 
+        let criteria_text = format!("{}", criteria); 
         for (i, cell) in cell_range.into_iter().enumerate() {
-            if &cell == criteria && !keep_index.contains(&i) {
-                keep_index.push(i); 
+            let cell_text = format!("{}", cell); 
+            let eval = if criteria_text.contains("<") || criteria_text.contains(">") {
+                evaluate_str(format!("{}{}", cell_text, criteria_text).as_str()).unwrap()
+            } else {
+                evaluate_str(format!("{}={}", cell_text, criteria_text).as_str()).unwrap()
+            }; 
+            if let Value::Bool(x) = eval {
+                if x && !keep_index.contains(&i) {
+                    keep_index.push(i); 
+                }
             }
-        }
+       }
     } 
     Value::from(sum_range.as_array()
         .into_iter()
