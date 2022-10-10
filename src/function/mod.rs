@@ -19,7 +19,9 @@ use chrono::{Months, naive::NaiveDate, Datelike};
 pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> {
     match name {
 		"SUM" => Ok(Box::new(Sum::from(args)).evaluate()), 
+		"SUMIF" => Ok(Box::new(Sumifs::from(args)).evaluate()), 
 		"AVERAGE" => Ok(Box::new(Average::from(args)).evaluate()), 
+		"AVERAGEIF" => Ok(Box::new(Averageif::from(args)).evaluate()), 
 		"COUNT" => Ok(Box::new(Count::from(args)).evaluate()),	
 		"EXPONENT" => Ok(Box::new(Exponent::from(args)).evaluate()),	
 		"CONCAT" => Ok(Box::new(Concat::from(args)).evaluate()),	
@@ -356,20 +358,13 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
         let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
         let criteria_text = format!("{}", criteria); 
-        for (i, cell) in cell_range.into_iter().enumerate() {
-            let cell_text = format!("{}", cell.ensure_single()); 
-            let eval = if criteria_text.contains("<") || criteria_text.contains(">") {
-                evaluate_str(format!("{}{}", cell_text, criteria_text).as_str()).unwrap()
-            } else {
-                evaluate_str(format!("{}={}", cell_text, criteria_text).as_str()).unwrap()
-            }; 
-            if let Value::Bool(x) = eval {
-                if x && !keep_index.contains(&i) {
-                    keep_index.push(i); 
-                }
+        for (i, cell) in cell_range.iter().enumerate() {
+            let eval = parse_criteria(criteria_text.as_str(), cell); 
+            if eval && !keep_index.contains(&i) {
+                keep_index.push(i); 
             }
-       }
-    } 
+        } 
+    }
     Value::from(sum_range.as_array()
         .into_iter()
         .enumerate()
@@ -383,27 +378,99 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
 } 
 
 #[function]
+fn sumif(range: Value, criteria: Value, sum_range: Option<Value>) -> Value {
+    let mut keep_index: Vec<usize> = vec![]; 
+    let range: Vec<Value> = range.as_array(); 
+    let criteria = criteria.ensure_single(); 
+    let criteria_text = format!("{}", criteria); 
+    for (i, cell) in range.iter().enumerate() {
+        let eval = parse_criteria(criteria_text.as_str(), cell); 
+        if eval && !keep_index.contains(&i) {
+            keep_index.push(i); 
+        }
+    } 
+    let sum_range = match sum_range {
+        Some(val) => val.as_array(), 
+        None => range
+    }; 
+    Value::from(sum_range
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, v)| match keep_index.contains(&i) {
+            true => Some(v.as_num()), 
+            false => None
+        }) 
+        .collect::<Vec<f64>>()
+        .iter()
+        .sum::<f64>()) 
+} 
+
+fn parse_criteria(c: &str, cell: &Value) -> bool {
+    let op: &str = if c.split("<>").count() > 1 {
+        "<>"
+    } else if c.split("<=").count() > 1 {
+        "<="
+    } else if c.split("<").count() > 1 {
+        "<"
+    } else if c.split(">=").count() > 1 {
+        ">="
+    } else if c.split(">").count() > 1 {
+        ">"
+    } else if c.split("=").count() > 1 {
+        "="
+    } else {
+        "" 
+    }; 
+    if ! op.is_empty() {
+        evaluate_str(format!("{}{}{}", c.split(op).collect::<Vec<&str>>()[1], op, cell.ensure_single()).as_str()).unwrap().as_bool()
+    } else {
+        evaluate_str(format!("{}={}", c, cell.ensure_single()).as_str()).unwrap().as_bool()
+    } 
+}
+
+#[function]
+fn averageif(range: Value, criteria: Value, average_range: Option<Value>) -> Value {
+    let mut keep_index: Vec<usize> = vec![]; 
+    let range: Vec<Value> = range.as_array(); 
+    let criteria = criteria.ensure_single(); 
+    let criteria_text = format!("{}", criteria); 
+    for (i, cell) in range.iter().enumerate() {
+        let eval = parse_criteria(criteria_text.as_str(), cell); 
+        if eval && !keep_index.contains(&i) {
+            keep_index.push(i); 
+        }
+    } 
+    let average_range = match average_range {
+        Some(val) => val.as_array(), 
+        None => range
+    }; 
+    let average_range_filter = average_range
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, v)| match keep_index.contains(&i) {
+            true => Some(v.as_num()), 
+            false => None
+        }).collect::<Vec<f64>>(); 
+    Value::from(average_range_filter
+        .iter()
+        .sum::<f64>()/average_range_filter.len() as f64)
+} 
+
+
+
+#[function]
 fn averageifs(average_range: Value, args: Vec<Value>) -> Value {
     let mut keep_index: Vec<usize> = vec![]; 
     for i in (0..args.len()).step_by(2) {
         let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
         let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
-        println!("Criteria: {}", criteria.clone()); 
         let criteria_text = criteria.as_text(); 
-        for (i, cell) in cell_range.into_iter().enumerate() {
-            println!("Cell: {}", cell.ensure_single().as_text()); 
-            let cell_text = format!("{}", cell.ensure_single().as_text()); 
-            let eval = if criteria_text.contains("<") || criteria_text.contains(">") {
-                evaluate_str(format!("{}{}", cell_text, criteria_text).as_str()).unwrap()
-            } else {
-                evaluate_str(format!("{}={}", cell_text, criteria_text).as_str()).unwrap()
-            }; 
-            if let Value::Bool(x) = eval {
-                if x && !keep_index.contains(&i) {
-                    keep_index.push(i); 
-                }
+        for (i, cell) in cell_range.iter().enumerate() {
+            let eval = parse_criteria(criteria_text.as_str(), cell); 
+            if eval && !keep_index.contains(&i) {
+                keep_index.push(i); 
             }
-       }
+        } 
     } 
     let average_range_filter = average_range.as_array()
         .into_iter()
