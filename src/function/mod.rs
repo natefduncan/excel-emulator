@@ -357,7 +357,7 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
     for i in (0..args.len()).step_by(2) {
         let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
         let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
-        let criteria_text = format!("{}", criteria); 
+        let criteria_text = criteria.as_text(); 
         for (i, cell) in cell_range.iter().enumerate() {
             let eval = parse_criteria(criteria_text.as_str(), cell); 
             if eval && !keep_index.contains(&i) {
@@ -406,6 +406,7 @@ fn sumif(range: Value, criteria: Value, sum_range: Option<Value>) -> Value {
 } 
 
 fn parse_criteria(c: &str, cell: &Value) -> bool {
+    let cell = cell.ensure_single().as_text(); 
     let op: &str = if c.split("<>").count() > 1 {
         "<>"
     } else if c.split("<=").count() > 1 {
@@ -422,9 +423,9 @@ fn parse_criteria(c: &str, cell: &Value) -> bool {
         "" 
     }; 
     if ! op.is_empty() {
-        evaluate_str(format!("{}{}{}", c.split(op).collect::<Vec<&str>>()[1], op, cell.ensure_single()).as_str()).unwrap().as_bool()
+        evaluate_str(format!("\"{}\"{}\"{}\"", c.split(op).collect::<Vec<&str>>()[1], op, cell).as_str()).unwrap().as_bool()
     } else {
-        evaluate_str(format!("{}={}", c, cell.ensure_single()).as_str()).unwrap().as_bool()
+        evaluate_str(format!("\"{}\"=\"{}\"", c, cell).as_str()).unwrap().as_bool()
     } 
 }
 
@@ -433,7 +434,7 @@ fn averageif(range: Value, criteria: Value, average_range: Option<Value>) -> Val
     let mut keep_index: Vec<usize> = vec![]; 
     let range: Vec<Value> = range.as_array(); 
     let criteria = criteria.ensure_single(); 
-    let criteria_text = format!("{}", criteria); 
+    let criteria_text = criteria.as_text(); 
     for (i, cell) in range.iter().enumerate() {
         let eval = parse_criteria(criteria_text.as_str(), cell); 
         if eval && !keep_index.contains(&i) {
