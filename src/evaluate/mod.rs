@@ -49,7 +49,18 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
 				Infix::LessThanEqual => Value::from(evaluate_expr(*a)? <= evaluate_expr(*b)?), 
 				Infix::GreaterThan => Value::from(evaluate_expr(*a)? > evaluate_expr(*b)?), 
 				Infix::GreaterThanEqual => Value::from(evaluate_expr(*a)? >= evaluate_expr(*b)?), 
-				_ => panic!("Infix {:?} does not convert to a value.", i) 
+                Infix::Ampersand => {
+                    let a = evaluate_expr(*a)?; 
+                    let b = evaluate_expr(*b)?; 
+                    let value = if a.is_array() {
+                        Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x, b))).collect::<Vec<Value>>())
+                    } else if b.is_array() {
+                        Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a, x))).collect::<Vec<Value>>())
+                    } else {
+                        Value::from(format!("{}{}", a, b))
+                    }; 
+                    value
+                },
 			}
 		}, 
 		Expr::Array(x) => Value::Array(x.into_iter().map(|x| evaluate_expr(x).unwrap()).collect::<Vec<Value>>()), 
