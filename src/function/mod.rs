@@ -263,6 +263,14 @@ pub fn index(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
 		Some(expr) => evaluate_expr_with_context(expr, book)?,
 		None => Value::from(1.0)
 	}; 
+    // Pass up Err
+    if array.is_err() {
+        return Ok(array); 
+    } else if row_num.is_err() {
+        return Ok(row_num); 
+    } else if col_num.is_err() {
+        return Ok(col_num); 
+    }
     let row_idx = row_num.as_num() as usize - 1;
     let col_idx = col_num.as_num() as usize - 1; 
     if let Value::Range { sheet, reference, value } = array {
