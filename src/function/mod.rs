@@ -37,6 +37,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
         },	
 		"EOMONTH" => Ok(Box::new(Eomonth::from(args)).evaluate()),	
 		"SUMIFS" => Ok(Box::new(Sumifs::from(args)).evaluate()),	
+		"AVERAGEIFS" => Ok(Box::new(Averageifs::from(args)).evaluate()),	
 		"XIRR" => Ok(Box::new(Xirrfunc::from(args)).evaluate()),	
 		"IF" => Ok(Box::new(Iffunc::from(args)).evaluate()),	
 		"XNPV" => Ok(Box::new(Xnpv::from(args)).evaluate()),	
@@ -207,6 +208,7 @@ fn min(args: Vec<Value>) -> Value {
 
 #[function]
 fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value {
+    let lookup_value = lookup_value.ensure_single(); 
     let mut lookup_array_mut = lookup_array.as_array();
     if match_type.as_num() == -1.0 {
         // Smallest value that is greater than or equal to the lookup-value.
@@ -348,7 +350,6 @@ fn eomonth(start_date: Value, months: Value) -> Value {
 }
 
 #[function]
-// TODO: Beef up criteria support
 fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
     let mut keep_index: Vec<usize> = vec![]; 
     for i in (0..args.len()).step_by(2) {
@@ -380,6 +381,43 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         .iter()
         .sum::<f64>()) 
 } 
+
+#[function]
+fn averageifs(average_range: Value, args: Vec<Value>) -> Value {
+    let mut keep_index: Vec<usize> = vec![]; 
+    for i in (0..args.len()).step_by(2) {
+        let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
+        let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
+        println!("Criteria: {}", criteria.clone()); 
+        let criteria_text = criteria.as_text(); 
+        for (i, cell) in cell_range.into_iter().enumerate() {
+            println!("Cell: {}", cell.ensure_single().as_text()); 
+            let cell_text = format!("{}", cell.ensure_single().as_text()); 
+            let eval = if criteria_text.contains("<") || criteria_text.contains(">") {
+                evaluate_str(format!("{}{}", cell_text, criteria_text).as_str()).unwrap()
+            } else {
+                evaluate_str(format!("{}={}", cell_text, criteria_text).as_str()).unwrap()
+            }; 
+            if let Value::Bool(x) = eval {
+                if x && !keep_index.contains(&i) {
+                    keep_index.push(i); 
+                }
+            }
+       }
+    } 
+    let average_range_filter = average_range.as_array()
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, v)| match keep_index.contains(&i) {
+            true => Some(v.as_num()), 
+            false => None
+        }).collect::<Vec<f64>>(); 
+    Value::from(average_range_filter
+        .iter()
+        .sum::<f64>()/average_range_filter.len() as f64) 
+} 
+
+
 
 #[function]
 fn xirrfunc(values: Value, dates: Value) -> Value {
@@ -651,6 +689,15 @@ mod tests {
         book.load().unwrap(); 
         book.calculate()?; 
         assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
+        Ok(())
+    }
+
+    #[test]
+    fn test_averageifs() -> Result<(), Error> {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load().unwrap(); 
+        book.calculate()?; 
+        assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
         Ok(())
     }
 
