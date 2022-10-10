@@ -25,7 +25,13 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
         }, 
         Expr::Literal(lit) => {
 			match lit {
-				Literal::Number(f) => Value::from(f), 
+				Literal::Number(f) => {
+                    if f.is_nan() {
+                        Value::from(0.0)
+                    } else {
+                        Value::from(f)
+                    }
+                }
 				Literal::Boolean(b) => Value::from(b), 
 				Literal::Text(s) => Value::from(s)
 			}
@@ -53,11 +59,11 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
                     let a = evaluate_expr(*a)?; 
                     let b = evaluate_expr(*b)?; 
                     let value = if a.is_array() {
-                        Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x, b))).collect::<Vec<Value>>())
+                        Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
                     } else if b.is_array() {
-                        Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a, x))).collect::<Vec<Value>>())
+                        Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
                     } else {
-                        Value::from(format!("{}{}", a, b))
+                        Value::from(format!("{}{}", a.as_text(), b.as_text()))
                     }; 
                     value
                 },
@@ -154,7 +160,18 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Result<Value, Erro
 				Infix::LessThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) <= ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
 				Infix::GreaterThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) > ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
 				Infix::GreaterThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) >= ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
-				_ => panic!("Infix {:?} does not convert to a value.", i) 
+                Infix::Ampersand => {
+                    let a = evaluate_expr_with_context(*a, book)?; 
+                    let b = evaluate_expr_with_context(*b, book)?; 
+                    let value = if a.is_array() {
+                        Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
+                    } else if b.is_array() {
+                        Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
+                    } else {
+                        Value::from(format!("{}{}", a.as_text(), b.as_text()))
+                    }; 
+                    value
+                },
 			}
 		}, 
 		Expr::Array(x) => Value::Array(x.into_iter().map(|e| ensure_non_range(evaluate_expr_with_context(e, book).unwrap())).collect::<Vec<Value>>()), 

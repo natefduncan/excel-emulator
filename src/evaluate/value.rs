@@ -61,7 +61,13 @@ impl Value {
 
     pub fn as_num(&self) -> NumType {
         match self {
-            Value::Num(x) => *x, 
+            Value::Num(x) => {
+                if x.is_nan() {
+                    0.0 
+                } else {
+                    *x
+                }
+            },
             Value::Text(t) => t.parse::<NumType>().unwrap(), 
             Value::Bool(x) => {
                 match x {
@@ -100,7 +106,7 @@ impl Value {
             Value::Array2(arr2) => { // Assume single cell
                 arr2[[0,0]].as_text()
             }, 
-            _ => panic!("{} cannot be converted to a string.", self)
+            c => format!("{}", c)
         } 
     }
 
@@ -141,7 +147,13 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Value::Num(x) => { write!(f, "{}", x) }, 
+            Value::Num(x) => { 
+                if x.is_nan() {
+                    write!(f, "{}", "0") 
+                } else {
+                    write!(f, "{}", x) 
+                } 
+            }, 
             Value::Bool(x) => { write!(f, "{}", if *x { "TRUE" } else { "FALSE" }) }, 
             Value::Text(x) => { write!(f, "\"{}\"", x) },
             Value::Formula(x) => { write!(f, "{}", x) }, 
@@ -151,7 +163,7 @@ impl fmt::Display for Value {
                     result.and_then(|_| writeln!(f, "{}", output)) 
                 })
             }, 
-            Value::Empty => { write!(f, "Empty") }
+            Value::Empty => { write!(f, "\"\"") }
             Value::Range {sheet, reference, value: _} => { 
                 match sheet {
                     Some(s) => write!(f, "{}!{}", s, reference), 
