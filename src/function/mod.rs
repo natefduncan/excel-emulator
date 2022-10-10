@@ -353,10 +353,10 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
     let mut keep_index: Vec<usize> = vec![]; 
     for i in (0..args.len()).step_by(2) {
         let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
-        let criteria: &Value = args.get(i+1).unwrap(); 
+        let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
         let criteria_text = format!("{}", criteria); 
         for (i, cell) in cell_range.into_iter().enumerate() {
-            let cell_text = format!("{}", cell); 
+            let cell_text = format!("{}", cell.ensure_single()); 
             let eval = if criteria_text.contains("<") || criteria_text.contains(">") {
                 evaluate_str(format!("{}{}", cell_text, criteria_text).as_str()).unwrap()
             } else {
