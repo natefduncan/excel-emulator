@@ -462,7 +462,10 @@ impl Book {
     pub fn calculate(&mut self) -> Result<(), Error> {
         loop {
             let mut calculated = true; 
+            let order: Vec<CellId> = self.dependencies.get_order(); 
+            let pb = ProgressBar::new(order.len() as u64); 
             for cell_id in self.dependencies.get_order().iter_mut() {
+                pb.inc(1); 
                 match self.calculate_cell(cell_id) {
                     Ok(()) => {
                         cell_id.calculated = Some(true)
