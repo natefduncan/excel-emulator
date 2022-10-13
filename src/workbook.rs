@@ -16,7 +16,7 @@ use crate::{
     evaluate::{
         value::Value, 
         evaluate_expr_with_context, 
-        offset_expr
+        ensure_non_range
     }, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 
@@ -188,7 +188,7 @@ impl Book {
                                 let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
                                 let (row, column, num_rows, num_cols) = Reference::from(dimension.clone()).get_dimensions(); 
                                 let sheet: &mut Sheet = self.sheets.get_mut(sheet_idx).unwrap();
-                                sheet.cells = Array::from_elem((num_rows + row - 1, num_cols + column - 1), Value::Empty); 
+                                sheet.cells = Array::from_elem((num_rows + row, num_cols + column), Value::Empty); 
                                 sheet.max_rows = num_rows + row; 
                                 sheet.max_columns = num_cols + column; 
                             }
@@ -264,7 +264,8 @@ impl Book {
                                 let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
                                 let (row, column): (usize, usize) = current_cell.as_tuple(); 
                                 sheet.cells[[row-1, column-1]] = adjusted_formula.clone(); 
-                                self.dependencies.add_formula(CellId::from((sheet_idx, row, column, 1, 1)), &adjusted_formula.to_string(), &self.sheets)?; 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                self.dependencies.add_formula(cell_id, &adjusted_formula.to_string(), &self.sheets)?; 
                                 flags.reset(); 
                             }
                         }
@@ -306,7 +307,8 @@ impl Book {
                             let (row, column): (usize, usize) = cell.as_tuple(); 
  
                             if value.is_formula() {
-                                self.dependencies.add_formula(CellId::from((sheet_idx, row, column, 1, 1)), &value.to_string(), &self.sheets)?; 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                self.dependencies.add_formula(cell_id, &value.to_string(), &self.sheets)?; 
                             }
 
                             let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
@@ -423,25 +425,8 @@ impl Book {
         }
     }
 
-    pub fn expand_offsets(&mut self) -> Result<(), Error> {
-        let offsets = self.dependencies.offsets.clone(); 
-        for v in offsets.iter() {
-            let sheet: &Sheet = self.get_sheet_by_idx(v.sheet); 
-            let value: &Value = &sheet.cells[[v.row-1, v.column-1]];
-            let formula_text = value.as_text(); 
-            let mut chars = formula_text.chars(); 
-            chars.next(); 
-            if let Expr::Func { name: _, args } = parse_str(chars.as_str())? {
-                let new_expr: Expr = offset_expr(args, self)?;
-                self.dependencies.add_expression(*v, new_expr, &self.sheets)?; 
-            } else {
-                panic!("Function did not return a formula")
-            }
-        }
-        Ok(())
-    }
-
     pub fn calculate_cell(&mut self, cell_id: &CellId) -> Result<(), Error> {
+        if ! cell_id.calculated.unwrap_or(true) {
             let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
             if let Value::Formula(formula_text) = cell_value.clone() {
@@ -449,19 +434,53 @@ impl Book {
                 let mut chars = formula_text.chars(); // Remove = at beginning
                 chars.next();
                 let expr: Expr = parse_str(chars.as_str())?; 
-                let new_value = evaluate_expr_with_context(expr, self)?;
-                let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
-                sheet.cells[[cell_id.row-1, cell_id.column-1]] = new_value; 
+                let new_value_result = evaluate_expr_with_context(expr, self);
+                match new_value_result {
+                    Ok(new_value) => {
+                        let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
+                        sheet.cells[[cell_id.row-1, cell_id.column-1]] = ensure_non_range(new_value); 
+                        return Ok(()); 
+                    }, 
+                    Err(e) => {
+                        return match e {
+                            Error::Volatile(_) => Err(e), 
+                            _ => Err(Error::Calculation(cell_id.clone(), Box::new(e)))
+
+                        }; 
+                    }
+                }; 
             }
-            Ok(())
-    } 
+        }
+        Ok(())
+    }
+
+    pub fn is_calculated(&self, expr: Expr) -> bool {
+        let value = self.resolve_ref(expr).unwrap(); 
+        value.into_raw_vec().iter().all(|x| ! x.is_formula())
+    }
 
     pub fn calculate(&mut self) -> Result<(), Error> {
-        self.expand_offsets()?; 
-        for cell_id in self.dependencies.get_order().iter() {
-            match self.calculate_cell(cell_id) {
-                Ok(()) => {}, 
-                Err(err) => { return Err(Error::Calculation(*cell_id, Box::new(err))) } 
+        loop {
+            let mut calculated = true; 
+            for cell_id in self.dependencies.get_order().iter_mut() {
+                match self.calculate_cell(cell_id) {
+                    Ok(()) => {
+                        cell_id.calculated = Some(true)
+                    }, 
+                    Err(err) => { 
+                        match err {
+                            Error::Volatile(new_expr) => {
+                                self.dependencies.add_expression(*cell_id, *new_expr, &self.sheets)?; 
+                                calculated = false; 
+                                break // Recalculate
+                            }, 
+                            _ => return Err(Error::Calculation(*cell_id, Box::new(err))) 
+                        } 
+                    }
+                }
+            }
+            if calculated {
+                break
             }
         }
         Ok(())
@@ -599,7 +618,9 @@ mod tests {
         )); 
         assert_eq!(book.resolve_ref(parse_str("Sheet2!B:B")?)?, arr2(&
             [[Value::Empty], 
-            [Value::from(55.0)]]
+            [Value::from(55.0)], 
+            [Value::Empty]
+            ]
         )); 
         Ok(())
     }

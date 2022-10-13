@@ -21,7 +21,7 @@ pub struct CellId {
     pub column: usize,
     pub num_row: usize, 
     pub num_col: usize, 
-    
+    pub calculated: Option<bool>
 }
 
 impl PartialOrd for CellId {
@@ -44,9 +44,9 @@ impl Ord for CellId {
     }
 }
 
-impl From<(usize, usize, usize, usize, usize)> for CellId {
-    fn from((sheet, row, column, num_row, num_col) : (usize, usize, usize, usize, usize)) -> CellId {
-        CellId { sheet, row, column, num_row, num_col }
+impl From<(usize, usize, usize, usize, usize, Option<bool>)> for CellId {
+    fn from((sheet, row, column, num_row, num_col, calculated) : (usize, usize, usize, usize, usize, Option<bool>)) -> CellId {
+        CellId { sheet, row, column, num_row, num_col, calculated }
     }
 }
 
@@ -99,21 +99,28 @@ impl DependencyTree {
                 }; 
                 let sheet: &Sheet = sheets.get(sheet_id).unwrap(); 
                 let reference = Reference::from(reference); 
-                let (start_row, start_col, mut num_rows, mut num_cols) = reference.get_dimensions(); 
+                let (mut start_row, mut start_col, mut num_rows, mut num_cols) = reference.get_dimensions(); 
+                start_row = start_row.max(1); 
+                start_col = start_col.max(1); 
                 num_rows = num_rows.min(sheet.max_rows);
                 num_cols = num_cols.min(sheet.max_columns); 
-                let pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols)); 
-                if ! self.cell_exists(&pre_cell) {
-                    if reference.is_multi_cell() {
+                let pre_cell: CellId; 
+                if reference.is_multi_cell() {
+                    pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols, None)); 
+                    if ! self.cell_exists(&pre_cell) {
                         for c in Reference::get_cells_from_dim(start_row, start_col, num_rows, num_cols) {
-                            let sub_cell = CellId::from((sheet_id, c.0, c.1, 1, 1)); 
+                            let sub_cell = CellId::from((sheet_id, c.0, c.1, 1, 1, Some(false))); 
                             if sub_cell != pre_cell {
                                 self.add_precedent(&sub_cell, &pre_cell); 
                             }
                         }
                     }
+                } else {
+                    pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols, Some(false))); 
                 }
-                self.add_precedent(&pre_cell, &cell); 
+                if pre_cell != cell {
+                    self.add_precedent(&pre_cell, &cell); 
+                }
             },
             Expr::Infix(_, a, b) => {
                 self.add_expression(cell, *a, sheets)?; 
@@ -124,7 +131,9 @@ impl DependencyTree {
             }, 
             Expr::Func { name, args } => {
                 if name.as_str() == "OFFSET" {
-                    self.offsets.push(cell); 
+                    let mut offset_args = args.clone(); 
+                    offset_args.remove(0); 
+                    self.add_expression(cell, Expr::Array(offset_args), sheets)?; 
                 }
                 for arg in args.into_iter() {
                     self.add_expression(cell, arg, sheets)?; 
@@ -195,9 +204,9 @@ mod tests {
     #[test]
     fn test_precedent() {
         let mut tree = DependencyTree::new(); 
-        let a = CellId::from((0,0,0,1,1)); 
-        let b = CellId::from((1,0,0,1,1)); 
-        let c = CellId::from((2,0,0,1,1)); 
+        let a = CellId::from((0,0,0,1,1, Some(false))); 
+        let b = CellId::from((1,0,0,1,1, Some(false))); 
+        let c = CellId::from((2,0,0,1,1, Some(false))); 
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&c, &b); // C must calculate before B 
         assert!(tree.is_dependent_of(&b, &a)); 
@@ -207,9 +216,9 @@ mod tests {
     #[test]
     fn test_order() {
         let mut tree = DependencyTree::new(); 
-        let a = CellId::from((0,0,0,1,1)); 
-        let b = CellId::from((1,0,0,1,1)); 
-        let c = CellId::from((2,0,0,1,1)); 
+        let a = CellId::from((0,0,0,1,1, Some(false))); 
+        let b = CellId::from((1,0,0,1,1, Some(false))); 
+        let c = CellId::from((2,0,0,1,1, Some(false))); 
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&b, &c); // B must calculate before C 
         let mut order: Vec<CellId> = tree.get_order(); 

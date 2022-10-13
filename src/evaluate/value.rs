@@ -25,7 +25,7 @@ pub enum Value {
     Array2(Array2Type), 
     Formula(TextType), 
     Error(ErrorType), 
-    Ref { sheet: Option<String>, reference: Reference }, 
+    Range { sheet: Option<String>, reference: Reference, value: Option<Box<Value>> }, 
     Empty
 }
 
@@ -48,12 +48,26 @@ impl Value {
     pub fn is_array2(&self) -> bool { matches!(self, Value::Array2(_)) }
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
     pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
-    pub fn is_ref(&self) -> bool { matches!(self, Value::Ref {sheet: _, reference: _}) }
+    pub fn is_range(&self) -> bool { matches!(self, Value::Range {sheet: _, reference: _, value: _}) }
     pub fn is_err(&self) -> bool { matches!(self, Value::Error(_)) }
+
+    pub fn ensure_single(&self) -> Value {
+        match self {
+            Value::Array2(arr2) => arr2[[0,0]].ensure_single().clone(), // assume single
+            Value::Array(arr) => arr.get(0).unwrap().ensure_single().clone(), // assume single
+            c => c.clone() // TODO
+        }
+    }
 
     pub fn as_num(&self) -> NumType {
         match self {
-            Value::Num(x) => *x, 
+            Value::Num(x) => {
+                if x.is_nan() {
+                    0.0 
+                } else {
+                    *x
+                }
+            },
             Value::Text(t) => t.parse::<NumType>().unwrap(), 
             Value::Bool(x) => {
                 match x {
@@ -64,6 +78,7 @@ impl Value {
             Value::Array2(arr2) => { // Assume single cell
                 arr2[[0,0]].as_num()
             }, 
+            Value::Empty => 0.0, 
             _ => panic!("{} cannot be converted to a number.", self)
         }
     }
@@ -87,13 +102,13 @@ impl Value {
     pub fn as_text(&self) -> TextType {
         match self {
             Value::Text(x) 
-            | Value::Formula(x) => x.clone(), 
+                | Value::Formula(x) => x.clone(), 
             Value::Array2(arr2) => { // Assume single cell
                 arr2[[0,0]].as_text()
             }, 
-            _ => panic!("{} cannot be converted to a string.", self)
+            c => format!("{}", c)
         } 
-   }
+    }
 
     pub fn as_date(&self) -> DateType {
         match self { 
@@ -109,7 +124,7 @@ impl Value {
         match self {
             Value::Array(arr) => arr.to_vec(),
             Value::Array2(arr2) => arr2.clone().into_raw_vec(), 
-            _ => panic!("{} cannot be converted to an array.", self)
+            c => vec![c.clone()], 
         }
     }
 
@@ -132,17 +147,24 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Value::Num(x) => { write!(f, "{}", x) }, 
+            Value::Num(x) => { 
+                if x.is_nan() {
+                    write!(f, "{}", "0") 
+                } else {
+                    write!(f, "{}", x) 
+                } 
+            }, 
             Value::Bool(x) => { write!(f, "{}", if *x { "TRUE" } else { "FALSE" }) }, 
-            Value::Text(x) | Value::Formula(x) => { write!(f, "{}", x) }, 
+            Value::Text(x) => { write!(f, "\"{}\"", x) },
+            Value::Formula(x) => { write!(f, "{}", x) }, 
             Value::Date(x) => { write!(f, "{}", x) }, 
             Value::Array(x) => {
                 x.iter().fold(Ok(()), |result, output| {
                     result.and_then(|_| writeln!(f, "{}", output)) 
                 })
             }, 
-            Value::Empty => { write!(f, "Empty") }
-            Value::Ref {sheet, reference} => { 
+            Value::Empty => { write!(f, "\"\"") }
+            Value::Range {sheet, reference, value: _} => { 
                 match sheet {
                     Some(s) => write!(f, "{}!{}", s, reference), 
                     None => write!(f, "{}", reference)
@@ -191,7 +213,15 @@ impl PartialOrd for Value {
                 } else if self.is_text() {
                     Some(self.as_text().cmp(&other.as_text()))
                 } else if self.is_num() {
-                    self.as_num().partial_cmp(&other.as_num())
+                    let a = self.as_num();
+                    let b = other.as_num();
+                    if a > b {
+                        Some(Ordering::Greater)
+                    } else if a < b {
+                        Some(Ordering::Less)
+                    } else {
+                        Some(Ordering::Equal)
+                    }
                 } else if self.is_date() {
                     Some(self.as_date().cmp(&other.as_date()))
                 } else {
@@ -211,27 +241,24 @@ impl Ord for Value {
 impl Add for Value {
     type Output = Self; 
     fn add(self, other: Self) -> Self {
-           match self {
-               Value::Num(x) => Value::from(x + other.as_num()), 
-               Value::Text(ref x) => Value::from(format!("{}{}", x, other.as_text())),
-               Value::Bool(_) => Value::from(self.as_num() + other.as_num()), 
-               Value::Array2(arr2) => arr2[[0,0]].clone() + other, // Assume single cell
-               Value::Date(_) => {
-                   if self.is_date() {
-                       Value::from(self.as_date().checked_add_signed(Duration::days(other.as_num() as i64)).unwrap())
-                   } else {
-                       Value::from(other.as_date().checked_add_signed(Duration::days(self.as_num() as i64)).unwrap())
-                   }
-               }, 
-               _ => panic!("{} cannot be added to {}.", other, self)
-           }
+        match self.ensure_single() {
+            Value::Num(x) => Value::from(x + other.ensure_single().as_num()), 
+            Value::Text(ref x) => Value::from(format!("{}{}", x, other.ensure_single().as_text())),
+            Value::Bool(_) => Value::from(self.as_num() + other.ensure_single().as_num()), 
+            Value::Empty => Value::from(0.0 + other.ensure_single().as_num()), 
+            Value::Date(dt) => {
+                Value::from(dt.checked_add_signed(Duration::days(other.ensure_single().as_num() as i64)).unwrap())
+            }, 
+            Value::Error(_) => self, 
+            _ => panic!("{} cannot be added to {}.", other, self)
+        }
     }
 }
 
 impl AddAssign for Value {
     fn add_assign(&mut self, other: Self) {
-        if self.is_num() {
-            *self = self.clone() + other
+        if self.ensure_single().is_num() {
+            *self = self.ensure_single() + other
         } else {
             panic!("{} cannot be add assigned to {}.", other, self)
         }
@@ -241,47 +268,56 @@ impl AddAssign for Value {
 impl Sub for Value {
     type Output = Self; 
     fn sub(self, other: Self) -> Self {
-           match self {
-               Value::Num(x) => Value::from(x - other.as_num()), 
-               Value::Bool(_) => Value::from(self.as_num() - other.as_num()), 
-               Value::Date(_) => {
-                   if self.is_date() {
-                       Value::from(self.as_date().checked_sub_signed(Duration::days(other.as_num() as i64)).unwrap())
-                   } else {
-                       Value::from(other.as_date().checked_sub_signed(Duration::days(self.as_num() as i64)).unwrap())
-                   }
-               }, 
-               _ => panic!("{} cannot be subtracted from {}.", other, self)
-           }
+        match self.ensure_single() {
+            Value::Num(x) => Value::from(x - other.ensure_single().as_num()), 
+            Value::Bool(_) => Value::from(self.as_num() - other.ensure_single().as_num()), 
+            Value::Empty => Value::from(0.0 - other.ensure_single().as_num()), 
+            Value::Date(dt) => {
+                let other_single = other.ensure_single(); 
+                if other_single.is_date() {
+                        Value::from(NaiveDate::signed_duration_since(dt, other_single.as_date()).num_days() as f64)
+                } else {
+                    Value::from(dt.checked_sub_signed(Duration::days(other_single.as_num() as i64)).unwrap())
+                }
+            }, 
+            Value::Error(_) => self, 
+            _ => panic!("{} cannot be subtracted from {}.", other, self)
+        }
     }
 }
 
 impl Mul for Value {
     type Output = Self; 
     fn mul(self, other: Self) -> Self {
-           match self {
-               Value::Num(x) => Value::from(x * other.as_num()), 
-               Value::Bool(_) => Value::from(self.as_num() * other.as_num()), 
-               // TODO
-               _ => panic!("{} cannot be multiplied by {}.", self, other)
-           }
+        match self.ensure_single() {
+            Value::Num(x) => Value::from(x * other.ensure_single().as_num()), 
+            Value::Bool(_) => Value::from(self.as_num() * other.ensure_single().as_num()), 
+            Value::Empty => Value::from(0.0 * other.ensure_single().as_num()), 
+            Value::Error(_) => self, 
+            // TODO
+            _ => panic!("{} cannot be multiplied by {}.", self, other)
+        }
     }
 }
 
 impl Div for Value {
     type Output = Self; 
     fn div(self, other: Self) -> Self {
-           match self {
-               Value::Num(x) => Value::from(x / other.as_num()), 
-               // TODO
-               _ => panic!("{} cannot be multiplied by {}.", self, other)
-           }
+        match self.ensure_single() {
+            Value::Num(x) => Value::from(x / other.ensure_single().as_num()), 
+            Value::Error(_) => self, 
+            // TODO
+            _ => panic!("{} cannot be divided by {}.", self, other)
+        }
     }
 }
 
 impl Neg for Value {
     type Output = Self;
     fn neg(self) -> Self {
-        Value::from(-self.as_num())
+        match self {
+            Value::Error(_) => self, 
+            _ => Value::from(-self.as_num()),
+        }
     }
 }
