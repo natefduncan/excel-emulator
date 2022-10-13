@@ -254,13 +254,13 @@ fn floor(x: Value, _significance: Value) -> Value {
  * This function will always return a Value::Ref and require than 
  * conversion to an actual value happens higher up the evaluation chain. 
 */
-pub fn index(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
+pub fn index(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error> {
 	let mut arg_values = args.into_iter(); 
-	let array: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book)?; // This can be a range or an array
-	let row_num: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book)?; 
+	let array: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book, debug)?; // This can be a range or an array
+	let row_num: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book, debug)?; 
 	let col_num_option = arg_values.next(); 
 	let col_num = match col_num_option {
-		Some(expr) => evaluate_expr_with_context(expr, book)?,
+		Some(expr) => evaluate_expr_with_context(expr, book, debug)?,
 		None => Value::from(1.0)
 	}; 
     // Pass up Err
@@ -300,23 +300,23 @@ pub fn index(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
 	}
 } 
 
-pub fn offset(args: Vec<Expr>, book: &Book) -> Result<Value, Error> {
-    let array = evaluate_expr_with_context(args.get(0).unwrap().clone(), book)?; 
+pub fn offset(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error> {
+    let array = evaluate_expr_with_context(args.get(0).unwrap().clone(), book, debug)?; 
 	if let Value::Range { sheet, reference, value: _ } = array { 
-		let rows = ensure_non_range(evaluate_expr_with_context(args.get(1).unwrap().clone(), book)?);
-		let cols = ensure_non_range(evaluate_expr_with_context(args.get(2).unwrap().clone(), book)?); 
+		let rows = ensure_non_range(evaluate_expr_with_context(args.get(1).unwrap().clone(), book, debug)?);
+		let cols = ensure_non_range(evaluate_expr_with_context(args.get(2).unwrap().clone(), book, debug)?); 
 		let height = args.get(3); 
 		let height_opt: Option<usize> = height.map(|h| {
-			ensure_non_range(evaluate_expr_with_context(h.clone(), book).unwrap()).as_num() as usize
+			ensure_non_range(evaluate_expr_with_context(h.clone(), book, debug).unwrap()).as_num() as usize
 		}); 
 		let width = args.get(4); 
 		let width_opt: Option<usize> = width.map(|w| {
-			ensure_non_range(evaluate_expr_with_context(w.clone(), book).unwrap()).as_num() as usize
+			ensure_non_range(evaluate_expr_with_context(w.clone(), book, debug).unwrap()).as_num() as usize
 		}); 
 		let new_reference = offset_reference(&mut reference.clone(), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         let new_expr = Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }; 
         if book.is_calculated(new_expr.clone()) {
-            let reference_value = match evaluate_expr_with_context(new_expr.clone(), book) {
+            let reference_value = match evaluate_expr_with_context(new_expr.clone(), book, debug) {
                 Ok(value) => Some(Box::new(ensure_non_range(value))), 
                 _ => panic!("New expression could not be evaluated: {}", new_expr.clone())
             }; 
@@ -724,7 +724,7 @@ mod tests {
     fn test_index() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
         Ok(())
     }
@@ -763,7 +763,7 @@ mod tests {
     fn test_sumifs() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
         Ok(())
     }
@@ -772,7 +772,7 @@ mod tests {
     fn test_averageifs() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
         Ok(())
     }
@@ -781,7 +781,7 @@ mod tests {
     fn test_xirr() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
         Ok(())
     }
@@ -790,7 +790,7 @@ mod tests {
     fn test_offset() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
         Ok(())
     }
@@ -806,7 +806,7 @@ mod tests {
     fn test_xnpv() -> Result<(), Error> {
         let mut book = Book::from("assets/functions.xlsx"); 
         book.load().unwrap(); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
         Ok(())
     }

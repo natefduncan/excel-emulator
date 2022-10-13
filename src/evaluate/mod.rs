@@ -76,17 +76,17 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
     Ok(value)
 }
 
-pub fn offset_expr(args: Vec<Expr>, book: &Book) -> Result<Expr, Error> {
+pub fn offset_expr(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Expr, Error> {
     if let Expr::Reference { sheet, reference } = args.get(0).unwrap() { 
-        let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book)?;
-        let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book)?; 
+        let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book, debug)?;
+        let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book, debug)?; 
         let height = args.get(3); 
         let height_opt: Option<usize> = height.map(|h| {
-            evaluate_expr_with_context(h.clone(), book).unwrap().as_num() as usize
+            evaluate_expr_with_context(h.clone(), book, debug).unwrap().as_num() as usize
         }); 
         let width = args.get(4); 
         let width_opt: Option<usize> = width.map(|w| {
-            evaluate_expr_with_context(w.clone(), book).unwrap().as_num() as usize
+            evaluate_expr_with_context(w.clone(), book, debug).unwrap().as_num() as usize
         }); 
         let new_reference = offset_reference(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         Ok(Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() })
@@ -107,8 +107,8 @@ pub fn ensure_non_range(value: Value) -> Value {
     }
 }
 
-pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Result<Value, Error> {
-    let value = match expr {
+pub fn evaluate_expr_with_context(expr: Expr, book: &Book, debug: bool) -> Result<Value, Error> {
+    let value = match expr.clone() {
         Expr::Reference { ref sheet, ref reference } => {
             let range_value: Option<Box<Value>> = match book.resolve_ref(expr.clone()) {
                 Ok(arr2) => Some(Box::new(Value::from(arr2))), 
@@ -119,17 +119,17 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Result<Value, Erro
         Expr::Func {name, args} => {
             match name.as_str() {
                 "OFFSET" => {
-                    let offset_value: Value = offset(args, book)?;  
+                    let offset_value: Value = offset(args, book, debug)?;  
                     match offset_value {
                         Value::Range {sheet: _, reference: _, value } => value.unwrap().as_array2()[[0,0]].clone(), 
                         _ => unreachable!()
                     }
                 }, 
                 "INDEX" => {
-                    index(args, book)?
+                    index(args, book, debug)?
                 }, 
                 c => {
-                    let arg_values: Vec<Value> = args.into_iter().map(|x| ensure_non_range(evaluate_expr_with_context(x, book).unwrap())).collect::<Vec<Value>>(); 
+                    let arg_values: Vec<Value> = args.into_iter().map(|x| ensure_non_range(evaluate_expr_with_context(x, book, debug).unwrap())).collect::<Vec<Value>>(); 
                     get_function_value(c, arg_values)?
                 }
             }
@@ -143,26 +143,26 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Result<Value, Erro
 		},
 		Expr::Prefix(p, box_expr) => { 
 			match p {
-				Prefix::Plus => Value::from(ensure_non_range(evaluate_expr_with_context(*box_expr, book)?).as_num().abs()),
-				Prefix::Minus => ensure_non_range(evaluate_expr_with_context(*box_expr, book)?) * Value::from(-1.0)
+				Prefix::Plus => Value::from(ensure_non_range(evaluate_expr_with_context(*box_expr, book, debug)?).as_num().abs()),
+				Prefix::Minus => ensure_non_range(evaluate_expr_with_context(*box_expr, book, debug)?) * Value::from(-1.0)
 			}
 		}, 
 		Expr::Infix(i, a, b) => {
 			match i {
-				Infix::Plus => ensure_non_range(evaluate_expr_with_context(*a, book)?) + ensure_non_range(evaluate_expr_with_context(*b, book)?), 
-				Infix::Minus => ensure_non_range(evaluate_expr_with_context(*a, book)?) - ensure_non_range(evaluate_expr_with_context(*b, book)?), 
-				Infix::Multiply => ensure_non_range(evaluate_expr_with_context(*a, book)?) * ensure_non_range(evaluate_expr_with_context(*b, book)?), 
-				Infix::Divide => ensure_non_range(evaluate_expr_with_context(*a, book)?) / ensure_non_range(evaluate_expr_with_context(*b, book)?), 
-				Infix::Exponent => Exponent {a: ensure_non_range(evaluate_expr_with_context(*a, book)?), b: ensure_non_range(evaluate_expr_with_context(*b, book)?)}.evaluate(), 
-				Infix::NotEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) != ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
-				Infix::Equal => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) == ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
-				Infix::LessThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) < ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
-				Infix::LessThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) <= ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
-				Infix::GreaterThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) > ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
-				Infix::GreaterThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book)?) >= ensure_non_range(evaluate_expr_with_context(*b, book)?)), 
+				Infix::Plus => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() + ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
+				Infix::Minus => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() - ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
+				Infix::Multiply => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() * ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
+				Infix::Divide => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() / ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
+				Infix::Exponent => Exponent {a: ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single(), b: ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()}.evaluate(), 
+				Infix::NotEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() != ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
+				Infix::Equal => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() == ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
+				Infix::LessThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() < ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
+				Infix::LessThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() <= ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
+				Infix::GreaterThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() > ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
+                Infix::GreaterThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() >= ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
                 Infix::Ampersand => {
-                    let a = evaluate_expr_with_context(*a, book)?; 
-                    let b = evaluate_expr_with_context(*b, book)?; 
+                    let a = evaluate_expr_with_context(*a, book, debug)?; 
+                    let b = evaluate_expr_with_context(*b, book, debug)?; 
                     let value = if a.is_array() {
                         Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
                     } else if b.is_array() {
@@ -174,9 +174,17 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book) -> Result<Value, Erro
                 },
 			}
 		}, 
-		Expr::Array(x) => Value::Array(x.into_iter().map(|e| ensure_non_range(evaluate_expr_with_context(e, book).unwrap())).collect::<Vec<Value>>()), 
+		Expr::Array(x) => Value::Array(x.into_iter().map(|e| ensure_non_range(evaluate_expr_with_context(e, book, debug).unwrap())).collect::<Vec<Value>>()), 
         _ => panic!("Expression {:?} does not convert to a value.", expr)  
 	}; 
+    if debug {
+        match expr.clone() {
+            Expr::Literal(_) | Expr::Reference { sheet: _, reference: _} => {}, 
+            _ => {
+                println!("{} => {:?}", expr, value.clone()); 
+            }
+        }
+    } 
     Ok(value)
 }
 

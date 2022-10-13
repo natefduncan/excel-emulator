@@ -425,8 +425,11 @@ impl Book {
         }
     }
 
-    pub fn calculate_cell(&mut self, cell_id: &CellId) -> Result<(), Error> {
+    pub fn calculate_cell(&mut self, cell_id: &CellId, debug: bool) -> Result<(), Error> {
         if ! cell_id.calculated.unwrap_or(true) {
+            if debug {
+                println!("======= Calculating cell: {}.{}", cell_id.sheet, Reference::from((cell_id.row, cell_id.column))); 
+            } 
             let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
             let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
             if let Value::Formula(formula_text) = cell_value.clone() {
@@ -434,11 +437,11 @@ impl Book {
                 let mut chars = formula_text.chars(); // Remove = at beginning
                 chars.next();
                 let expr: Expr = parse_str(chars.as_str())?; 
-                let new_value_result = evaluate_expr_with_context(expr, self);
+                let new_value_result = evaluate_expr_with_context(expr, self, debug);
                 match new_value_result {
                     Ok(new_value) => {
                         let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
-                        sheet.cells[[cell_id.row-1, cell_id.column-1]] = ensure_non_range(new_value); 
+                        sheet.cells[[cell_id.row-1, cell_id.column-1]] = ensure_non_range(new_value).ensure_single(); 
                         return Ok(()); 
                     }, 
                     Err(e) => {
@@ -459,14 +462,14 @@ impl Book {
         value.into_raw_vec().iter().all(|x| ! x.is_formula())
     }
 
-    pub fn calculate(&mut self) -> Result<(), Error> {
+    pub fn calculate(&mut self, debug: bool) -> Result<(), Error> {
         loop {
             let mut calculated = true; 
             let order: Vec<CellId> = self.dependencies.get_order(); 
             let pb = ProgressBar::new(order.len() as u64); 
             for cell_id in self.dependencies.get_order().iter_mut() {
                 pb.inc(1); 
-                match self.calculate_cell(cell_id) {
+                match self.calculate_cell(cell_id, debug) {
                     Ok(()) => {
                         cell_id.calculated = Some(true)
                     }, 
@@ -609,7 +612,7 @@ mod tests {
     fn test_resolve_ref() -> Result<(), Error> {
         let mut book = Book::from("assets/basic.xlsx"); 
         book.load().expect("Could not load workbook"); 
-        book.calculate()?; 
+        book.calculate(false)?; 
         assert_eq!(book.resolve_ref(parse_str("Sheet2!B2")?)?, arr2(&[[Value::from(55.0)]])); 
         assert_eq!(book.resolve_ref(parse_str("Sheet2!A1:B2")?)?, arr2(&
             [[Value::Empty, Value::Empty], 

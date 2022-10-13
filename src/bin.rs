@@ -15,7 +15,10 @@ struct Cli {
     path: String, 
 
     #[clap(subcommand)]
-    command: Option<Commands>
+    command: Option<Commands>, 
+
+    #[clap(short, long)]
+    debug: bool 
 }
 
 #[derive(Subcommand)]
@@ -23,6 +26,7 @@ enum Commands {
     Load, 
     Deps,
     Order,
+    Sheets, 
     Get {
         #[clap(value_parser)]
         range: String 
@@ -45,6 +49,9 @@ fn main() -> Result<(), Error> {
         Some(Commands::Order) => {
             println!("{:?}", book.dependencies.get_order()); 
         }, 
+        Some(Commands::Sheets) => {
+            println!("{:?}", book.sheets.iter().map(|x| x.name.clone()).collect::<Vec<String>>()); 
+        }, 
         Some(Commands::Get {range}) => {
             let expr: Expr = parse_str(range)?;
             if matches!(expr, Expr::Reference { sheet: _, reference: _} ) {
@@ -54,7 +61,7 @@ fn main() -> Result<(), Error> {
             }
         }, 
         Some(Commands::Calculate {range}) => {
-            book.calculate()?; 
+            book.calculate(cli.debug)?; 
             println!("{:?}", book.resolve_str_ref(range)); 
         }
         _ => {}
