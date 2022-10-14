@@ -362,16 +362,22 @@ fn eomonth(start_date: Value, months: Value) -> Value {
 #[function]
 fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
     let mut keep_index: Vec<usize> = vec![]; 
-    for i in (0..args.len()).step_by(2) {
-        let cell_range: Vec<Value> = args.get(i).unwrap().as_array(); 
+    for (idx, i) in (0..args.len()).step_by(2).enumerate() {
+        let cell_range: Vec<Value> = args.get(i).unwrap().as_array();
         let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
         let criteria_text = criteria.as_text(); 
-        for (i, cell) in cell_range.iter().enumerate() {
-            let eval = parse_criteria(criteria_text.as_str(), cell); 
-            if eval && !keep_index.contains(&i) {
-                keep_index.push(i); 
-            }
-        } 
+        for (y, cell) in cell_range.iter().enumerate() {
+            let eval: bool = parse_criteria(criteria_text.as_str(), cell); 
+            if idx == 0 {
+                if eval {
+                    keep_index.push(y); 
+                }
+            } else {
+                if ! eval && keep_index.contains(&y) {
+                    keep_index.retain(|x| x != &y); 
+                }
+           }
+       } 
     }
     Value::from(sum_range.as_array()
         .into_iter()
@@ -379,7 +385,7 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         .filter_map(|(i, v)| match keep_index.contains(&i) {
             true => Some(v.as_num()), 
             false => None
-        }) 
+        })
         .collect::<Vec<f64>>()
         .iter()
         .sum::<f64>()) 
