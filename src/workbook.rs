@@ -66,12 +66,12 @@ impl Book {
         Book { zip: None, sheets: vec![], shared_strings: vec![], styles: vec![], current_sheet: 0, dependencies: DependencyTree::new() }
     }
 
-    pub fn load(&mut self) -> Result<(), Error> {
+    pub fn load(&mut self, progress: bool) -> Result<(), Error> {
         self.load_sheet_names()?; 
         self.load_shared_strings()?; 
         self.load_styles()?; 
         self.load_sheets_dimensions()?; 
-        self.load_sheets()?; 
+        self.load_sheets(progress)?; 
         Ok(())
     }
 
@@ -161,9 +161,9 @@ impl Book {
         Ok(())
     }
 
-    pub fn load_sheets(&mut self) -> Result<(), Error> { 
+    pub fn load_sheets(&mut self, progress: bool) -> Result<(), Error> { 
         for sheet_id in 0..self.sheets.len() {
-            self.load_sheet(sheet_id)?; 
+            self.load_sheet(sheet_id, progress)?; 
         }
         Ok(()) 
     }
@@ -202,11 +202,14 @@ impl Book {
         Ok(())
     }
 
-    pub fn load_sheet(&mut self, sheet_idx: usize) -> Result<(), Error> {
+    pub fn load_sheet(&mut self, sheet_idx: usize, progress: bool) -> Result<(), Error> {
         let mut buf = Vec::new();
         let max_rows = self.get_sheet_by_idx(sheet_idx).max_rows.clone(); 
         let max_columns = self.get_sheet_by_idx(sheet_idx).max_columns.clone(); 
-        let pb = ProgressBar::new((max_rows * max_columns) as u64); 
+        let pb = match progress {
+            true => ProgressBar::new((max_rows * max_columns) as u64), 
+            false => ProgressBar::hidden()
+        }; 
         if let Ok(f) = self.zip.as_mut().unwrap().by_name(&format!("xl/worksheets/sheet{}.xml", sheet_idx + 1)) {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
             let mut flags = SheetFlags::new(); 
@@ -462,11 +465,14 @@ impl Book {
         value.into_raw_vec().iter().all(|x| ! x.is_formula())
     }
 
-    pub fn calculate(&mut self, debug: bool) -> Result<(), Error> {
+    pub fn calculate(&mut self, debug: bool, progress: bool) -> Result<(), Error> {
         loop {
             let mut calculated = true; 
             let order: Vec<CellId> = self.dependencies.get_order(); 
-            let pb = ProgressBar::new(order.len() as u64); 
+            let pb = match progress {
+                true => ProgressBar::new(order.len() as u64), 
+                false => ProgressBar::hidden() 
+            };
             for cell_id in self.dependencies.get_order().iter_mut() {
                 pb.inc(1); 
                 match self.calculate_cell(cell_id, debug) {
@@ -589,7 +595,7 @@ mod tests {
     #[test]
     fn test_sheet_names() {
         let mut book = Book::from("assets/data_types.xlsx"); 
-        book.load().expect("Could not load workbook"); 
+        book.load(false).expect("Could not load workbook"); 
         assert_eq!(&book.sheets[0].name, "test 1");
         assert_eq!(&book.sheets[1].name, "test 2");
         assert_eq!(&book.sheets[2].name, "test 3");
@@ -598,7 +604,7 @@ mod tests {
     #[test]
     fn test_cells() {
         let mut book = Book::from("assets/data_types.xlsx"); 
-        book.load().expect("Could not load workbook"); 
+        book.load(false).expect("Could not load workbook"); 
         assert_eq!(get_cell(&book, "test 1", 0, 0), Value::from("Text")); 
         assert_eq!(get_cell(&book, "test 1", 1, 0), Value::from("a")); 
         assert_eq!(get_cell(&book, "test 1", 2, 0), Value::from("b")); 
@@ -611,8 +617,8 @@ mod tests {
     #[test]
     fn test_resolve_ref() -> Result<(), Error> {
         let mut book = Book::from("assets/basic.xlsx"); 
-        book.load().expect("Could not load workbook"); 
-        book.calculate(false)?; 
+        book.load(false).expect("Could not load workbook"); 
+        book.calculate(false, false)?; 
         assert_eq!(book.resolve_ref(parse_str("Sheet2!B2")?)?, arr2(&[[Value::from(55.0)]])); 
         assert_eq!(book.resolve_ref(parse_str("Sheet2!A1:B2")?)?, arr2(&
             [[Value::Empty, Value::Empty], 

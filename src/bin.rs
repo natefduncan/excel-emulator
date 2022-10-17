@@ -18,6 +18,9 @@ struct Cli {
     command: Option<Commands>, 
 
     #[clap(short, long)]
+    progress: bool, 
+
+    #[clap(short, long)]
     debug: bool 
 }
 
@@ -40,9 +43,9 @@ enum Commands {
 fn main() -> Result<(), Error> {
     let cli = Cli::parse();
     let mut book: Book = Book::from(cli.path); 
-    book.load()?; 
+    book.load(cli.progress)?; 
     match &cli.command {
-        Some(Commands::Load) => { book.load()?}, 
+        Some(Commands::Load) => { book.load(cli.progress)?}, 
         Some(Commands::Deps) => { 
             println!("{}", book.dependencies); 
         }, 
@@ -61,7 +64,7 @@ fn main() -> Result<(), Error> {
             }
         }, 
         Some(Commands::Calculate {range}) => {
-            book.calculate(cli.debug)?; 
+            book.calculate(cli.debug, cli.progress)?; 
             println!("{:?}", book.resolve_str_ref(range)); 
         }
         _ => {}
