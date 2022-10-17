@@ -56,7 +56,7 @@ pub trait Function {
    fn evaluate(self) -> Value; 
 }
 
-pub fn offset_reference(r: &mut Reference, rows: i32, cols: i32, height: Option<usize>, width: Option<usize>) -> Reference {
+pub fn offset_reference(r: &mut Reference, rows: i32, cols: i32, height: Option<i32>, width: Option<i32>) -> Reference {
     if r.row() as i32 + rows < 0 || r.column() as i32 + cols < 0 {
         panic!("Invalid offset");
     } else {
@@ -64,18 +64,32 @@ pub fn offset_reference(r: &mut Reference, rows: i32, cols: i32, height: Option<
     }
     let mut end_cell : Option<Cell> = None;  
     if height.is_some() || width.is_some() {
-        let h_u : usize = height.unwrap_or(0); 
-        let w_u : usize = width.unwrap_or(0); 
-        if h_u > 1 || w_u > 1 {
+        let h_u : i32 = height.unwrap_or(0); 
+        let w_u : i32 = width.unwrap_or(0); 
+        println!("HW: {},{}", h_u, w_u);  
+        if h_u.abs() > 1 || w_u.abs() > 1 {
+            let h_offset = match h_u.is_positive() {
+                true => h_u - 1, 
+                false => h_u + 1
+            }; 
+            let w_offset = match w_u.is_positive() {
+                true => w_u - 1, 
+                false => w_u + 1
+            }; 
             end_cell = Some(
-                Cell::from((
-                    r.row() + h_u, 
-                    r.column() + w_u
+               Cell::from((
+                        (r.row() as i32 + h_offset) as usize, 
+                        (r.column() as i32 + w_offset) as usize
                 ))
             ); 
         }
     }
     r.end_cell = end_cell; 
+    if let Some(end_cell) = r.end_cell {
+        if end_cell < r.start_cell {
+            return Reference::from((end_cell, Some(r.start_cell))); 
+        } 
+    }
     *r
 }
 
@@ -306,13 +320,14 @@ pub fn offset(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error>
 		let rows = ensure_non_range(evaluate_expr_with_context(args.get(1).unwrap().clone(), book, debug)?);
 		let cols = ensure_non_range(evaluate_expr_with_context(args.get(2).unwrap().clone(), book, debug)?); 
 		let height = args.get(3); 
-		let height_opt: Option<usize> = height.map(|h| {
-			ensure_non_range(evaluate_expr_with_context(h.clone(), book, debug).unwrap()).as_num() as usize
+		let height_opt: Option<i32> = height.map(|h| {
+			ensure_non_range(evaluate_expr_with_context(h.clone(), book, debug).unwrap()).as_num() as i32
 		}); 
 		let width = args.get(4); 
-		let width_opt: Option<usize> = width.map(|w| {
-			ensure_non_range(evaluate_expr_with_context(w.clone(), book, debug).unwrap()).as_num() as usize
+		let width_opt: Option<i32> = width.map(|w| {
+			ensure_non_range(evaluate_expr_with_context(w.clone(), book, debug).unwrap()).as_num() as i32
 		}); 
+        println!("{:?}, {:?}, {:?}, {:?}", rows, cols, height_opt, width_opt); 
 		let new_reference = offset_reference(&mut reference.clone(), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         let new_expr = Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }; 
         if book.is_calculated(new_expr.clone()) {

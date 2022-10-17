@@ -81,13 +81,14 @@ pub fn offset_expr(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Expr, Er
         let rows = evaluate_expr_with_context(args.get(1).unwrap().clone(), book, debug)?;
         let cols = evaluate_expr_with_context(args.get(2).unwrap().clone(), book, debug)?; 
         let height = args.get(3); 
-        let height_opt: Option<usize> = height.map(|h| {
-            evaluate_expr_with_context(h.clone(), book, debug).unwrap().as_num() as usize
+        let height_opt: Option<i32> = height.map(|h| {
+            evaluate_expr_with_context(h.clone(), book, debug).unwrap().as_num() as i32 
         }); 
         let width = args.get(4); 
-        let width_opt: Option<usize> = width.map(|w| {
-            evaluate_expr_with_context(w.clone(), book, debug).unwrap().as_num() as usize
+        let width_opt: Option<i32> = width.map(|w| {
+            evaluate_expr_with_context(w.clone(), book, debug).unwrap().as_num() as i32 
         }); 
+        println!("{:?},{:?},{:?},{:?}", rows, cols, height_opt, width_opt); 
         let new_reference = offset_reference(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         Ok(Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() })
     } else {
@@ -121,7 +122,9 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book, debug: bool) -> Resul
                 "OFFSET" => {
                     let offset_value: Value = offset(args, book, debug)?;  
                     match offset_value {
-                        Value::Range {sheet: _, reference: _, value } => value.unwrap().as_array2()[[0,0]].clone(), 
+                        Value::Range {sheet: _, reference: _, value } => {
+                            Value::from(value.unwrap().as_array2())
+                        }, 
                         _ => unreachable!()
                     }
                 }, 
