@@ -114,7 +114,7 @@ fn parse_func_expr(input: Tokens) -> IResult<Tokens, Expr> {
 
 fn parse_prefix_expr(input: Tokens) -> IResult<Tokens, Expr> {
     map(
-        pair(alt((plus_tag, minus_tag)), parse_expr), 
+        pair(alt((plus_tag, minus_tag)), parse_atom_expr), 
         |(pre, expr)| {
             let prefix = match &pre.tok[0] {
                 Token::Plus => Prefix::Plus, 
@@ -291,9 +291,9 @@ fn parse_infix_expr(input: Tokens) -> IResult<Tokens, Expr> {
 
 fn parse_atom_expr(input: Tokens) -> IResult<Tokens, Expr> {
     alt((
+        parse_prefix_expr,
         parse_paren_expr, 
         parse_error_expr, 
-        parse_prefix_expr,
         parse_func_expr, 
         parse_array_expr, 
         parse_reference_expr, 
@@ -442,6 +442,23 @@ mod tests {
                 Expr::from(1.0)
             ]
         }); 
+        Ok(())
+    }
+
+    #[test]
+    fn test_infix_precedence() -> Result<(), Error> {
+        assert_eq!(parse_str("-(1+1)-2")?, Expr::Infix(
+                Infix::Minus, 
+                Box::new(Expr::Prefix(
+                        Prefix::Minus, 
+                        Box::new(Expr::Infix(
+                                Infix::Plus, 
+                                Box::new(Expr::from(1.0)), 
+                                Box::new(Expr::from(1.0))
+                        ))
+                )), 
+                Box::new(Expr::from(2.0))
+        )); 
         Ok(())
     }
 

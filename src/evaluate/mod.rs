@@ -212,6 +212,12 @@ mod tests {
     }
 
     #[test]
+    fn test_infix_precedence() -> Result<(), Error> {
+        assert_eq!(evaluate_str(" -(1+1)-2 ")?, Value::from(-4.0)); 
+        Ok(())
+    }
+
+    #[test]
     fn test_formula() -> Result<(), Error> {
         assert_eq!(evaluate_str(" SUM(1, 1) ")?, Value::from(2.0)); 
         assert_eq!(evaluate_str(" SUM(SUM(1, 2), 1) ")?, Value::from(4.0)); 
