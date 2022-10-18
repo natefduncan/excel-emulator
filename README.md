@@ -32,3 +32,7 @@ SUBCOMMANDS:
     order        Print cell calculation order
     sheets       Print workbook sheets
 ```
+
+## Demo
+
+![example](https://user-images.githubusercontent.com/30030731/196530970-3d3d2e12-049c-406e-abbb-a8b98532f542.gif)
