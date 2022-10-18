@@ -9,7 +9,7 @@ use excel_lib::{
 }; 
 
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author, version, about, long_about = "Parse excel file and run logic in rust")]
 struct Cli {
     #[clap(value_parser)]
     path: String, 
@@ -25,6 +25,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[clap(about)]
 enum Commands {
     Load, 
     Deps,
