@@ -20,7 +20,7 @@ path = "src/bin.rs"
 anyhow = "1.0.61"
 chrono = "0.4.22"
 clap = { version = "3.2.19", features = ["derive"] }
-function-macro = { version = "0.1.0", path = "function-macro" }
+excel-emulator-macro = { version = "0.1.0", path = "excel-emulator-macro" }
 ndarray = "0.15.6"
 nom = "7.1.1"
 petgraph = "0.6.2"
