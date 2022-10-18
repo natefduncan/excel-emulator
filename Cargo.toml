@@ -7,6 +7,7 @@ readme = "README.md"
 repository = "https://github.com/natefduncan/excel-emulator.git"
 keywords = ["excel", "xlsx", "emulator"]
 categories = ["command-line-utilities", "parsing"] 
+license-file = "LICENSE"
 
 [lib]
 name = "excel_lib"

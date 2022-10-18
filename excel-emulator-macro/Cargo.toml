@@ -2,6 +2,11 @@
 name = "excel-emulator-macro"
 version = "0.1.0"
 edition = "2021"
+description = "Helper macros for excel-emulator" 
+repository = "https://github.com/natefduncan/excel-emulator.git"
+keywords = ["excel", "xlsx", "emulator"]
+categories = ["command-line-utilities", "parsing"]
+license-file = "LICENSE"
 
 [lib]
 proc-macro=true
