@@ -1,6 +1,5 @@
 [package]
 name = "excel-emulator"
-authors = "Nate Duncan"
 version = "0.1.0"
 edition = "2021"
 description = "Convert Excel workbooks into Rust logic."
