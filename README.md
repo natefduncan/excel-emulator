@@ -4,7 +4,7 @@ Convert Excel workbooks into Rust logic.
 
 ## Installation
 
-`cargo install excel-emulator` for the an `excel` binary.
+`cargo install excel-emulator` for the `excel` binary.
 
 ## Usage
 
