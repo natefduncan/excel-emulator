@@ -66,7 +66,6 @@ pub fn offset_reference(r: &mut Reference, rows: i32, cols: i32, height: Option<
     if height.is_some() || width.is_some() {
         let h_u : i32 = height.unwrap_or(0); 
         let w_u : i32 = width.unwrap_or(0); 
-        println!("HW: {},{}", h_u, w_u);  
         if h_u.abs() > 1 || w_u.abs() > 1 {
             let h_offset = match h_u.is_positive() {
                 true => h_u - 1, 
@@ -327,7 +326,6 @@ pub fn offset(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error>
 		let width_opt: Option<i32> = width.map(|w| {
 			ensure_non_range(evaluate_expr_with_context(w.clone(), book, debug).unwrap()).as_num() as i32
 		}); 
-        println!("{:?}, {:?}, {:?}, {:?}", rows, cols, height_opt, width_opt); 
 		let new_reference = offset_reference(&mut reference.clone(), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         let new_expr = Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }; 
         if book.is_calculated(new_expr.clone()) {
@@ -595,9 +593,12 @@ fn pmt(rate: Value, nper: Value, pv: Value, fv: Option<Value>, f_type: Option<Va
     let pv = pv.as_num();
     let fv = fv.unwrap_or_else(|| Value::from(0.0)).as_num(); 
     let f_type = f_type.unwrap_or_else(|| Value::from(0.0)).as_num();
-    Value::from(
-        rate*(fv*-1.0+pv*(1.0+rate).powf(nper))/((1.0+rate*f_type)*(1.0-(1.0+rate).powf(nper)))
-    )
+    let value = rate*(fv*-1.0+pv*(1.0+rate).powf(nper))/((1.0+rate*f_type)*(1.0-(1.0+rate).powf(nper)));
+    if value == f64::INFINITY || value == f64::NEG_INFINITY {
+        Value::Error(ExcelError::Num)
+    } else {
+        Value::from(value)
+    }
 }
 
 #[function]
