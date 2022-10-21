@@ -25,7 +25,6 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
-#[clap(about)]
 enum Commands {
     Load, 
     Deps,
