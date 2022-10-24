@@ -141,6 +141,7 @@ impl Book {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/workbook.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
+            let mut sheet_idx: usize = 0; 
             loop {
                 match reader.read_event(&mut buf) {
                     Ok(Event::Empty(ref e)) if e.local_name() == b"sheet" => {
@@ -148,7 +149,8 @@ impl Book {
                             let a = a.unwrap();
                             if let b"name" = a.key {
                                 let name = a.unescape_and_decode_value(&reader).unwrap();
-                                self.sheets.push(Sheet::from(name)); 
+                                self.sheets.push(Sheet::from((name, sheet_idx))); 
+                                sheet_idx += 1; 
                             }
                         }
                     }, 
@@ -267,7 +269,7 @@ impl Book {
                                 let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
                                 let (row, column): (usize, usize) = current_cell.as_tuple(); 
                                 sheet.values[[row-1, column-1]].value = adjusted_formula.clone(); 
-                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, true)); 
                                 self.dependencies.add_formula(cell_id, &adjusted_formula.to_string(), &self.sheets)?; 
                                 flags.reset(); 
                             }
@@ -310,7 +312,7 @@ impl Book {
                             let (row, column): (usize, usize) = cell.as_tuple(); 
  
                             if value.is_formula() {
-                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, true)); 
                                 self.dependencies.add_formula(cell_id, &value.to_string(), &self.sheets)?; 
                             }
 
@@ -435,7 +437,7 @@ impl Book {
     }
 
     pub fn calculate_cell(&mut self, cell_id: &CellId, debug: bool) -> Result<(), Error> {
-        if ! cell_id.calculated.unwrap_or(true) {
+        if cell_id.dirty {
             if debug {
                 println!("======= Calculating cell: {}.{}", cell_id.sheet, Reference::from((cell_id.row, cell_id.column))); 
             } 
@@ -483,7 +485,7 @@ impl Book {
                 pb.inc(1); 
                 match self.calculate_cell(cell_id, debug) {
                     Ok(()) => {
-                        cell_id.calculated = Some(true)
+                        cell_id.dirty = false; 
                     }, 
                     Err(err) => { 
                         match err {
@@ -502,6 +504,21 @@ impl Book {
             }
         }
         Ok(())
+    }
+
+    pub fn set_value(&mut self, range: &str, value: Value) {
+        let expr: Expr = parse_str(range).unwrap(); 
+        if let Expr::Reference { sheet, reference } = expr {
+            let sheet_str = sheet.unwrap(); 
+            let sheet = self.get_mut_sheet_by_name(&sheet_str); 
+            let reference = Reference::from(reference); 
+            sheet.set_value(reference, value); 
+            let cell_id = CellId::from((sheet.idx, reference.row(), reference.column(), 1, 1, false)); 
+            self.dependencies.mark_for_recalculation(&cell_id); 
+       } else {
+            panic!("String must resolve to a reference"); 
+        }
+ 
     }
 }
 
@@ -540,21 +557,23 @@ impl SheetValue {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Sheet {
     pub name: String,
+    pub idx: usize, 
     pub max_rows: usize, 
     pub max_columns: usize, 
     pub values: Array2<SheetValue>
 }
 
-impl From<&str> for Sheet {
-    fn from(s: &str) -> Sheet {
-        Sheet::from(s.to_string())
+impl From<(&str, usize)> for Sheet {
+    fn from(s: (&str, usize)) -> Sheet {
+        Sheet::from((s.0.to_string(), s.1))
     }
 }
 
-impl From<String> for Sheet {
-    fn from(s: String) -> Sheet {
+impl From<(String, usize)> for Sheet {
+    fn from(s: (String, usize)) -> Sheet {
         Sheet {
-            name: s, 
+            name: s.0, 
+            idx: s.1, 
             max_rows: 0, 
             max_columns: 0, 
             values: Array::from_elem((0, 0), SheetValue::new())
