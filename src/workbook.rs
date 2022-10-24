@@ -381,7 +381,7 @@ impl Book {
         self.sheets.get(idx).unwrap()
     }
 
-    pub fn resolve_str_ref(&self, s: &str) -> Result<Array2<SheetValue>, Error> {
+    pub fn resolve_str_ref(&self, s: &str) -> Result<Array2<Value>, Error> {
         let expr: Expr = parse_str(s)?; 
         if matches!(expr, Expr::Reference { sheet: _, reference: _}) {
             self.resolve_ref(expr)
@@ -390,7 +390,7 @@ impl Book {
         }
     }
 
-    pub fn resolve_ref(&self, expr: Expr) -> Result<Array2<SheetValue>, Error> {
+    pub fn resolve_ref(&self, expr: Expr) -> Result<Array2<Value>, Error> {
         if let Expr::Reference {sheet, reference} = expr {
             let (mut row, mut col, mut num_rows, mut num_cols) = Reference::from(reference).get_dimensions();
             let sheet: &Sheet = match sheet {
@@ -422,7 +422,13 @@ impl Book {
                     output.push(Axis(1), ArrayView::from(&Array::from_elem(output.dim().0, SheetValue::new()))).unwrap(); 
                 }
             }
-            Ok(output)
+            Ok(output.map(|b| {
+                if b.is_calculated() {
+                    b.calculated.clone()
+                } else {
+                    b.value.clone()
+                }
+            }))
         } else {
             panic!("Can only resolve a reference expression.")
         }
@@ -462,7 +468,7 @@ impl Book {
 
     pub fn is_calculated(&self, expr: Expr) -> bool {
         let value = self.resolve_ref(expr).unwrap(); 
-        value.into_raw_vec().iter().all(|x| x.value.is_formula() && ! matches!(x.calculated, Value::Empty))
+        value.into_raw_vec().iter().all(|x| ! x.is_formula())
     }
 
     pub fn calculate(&mut self, debug: bool, progress: bool) -> Result<(), Error> {
@@ -524,6 +530,10 @@ impl From<(Value, Value)> for SheetValue {
 impl SheetValue {
     fn new() -> SheetValue {
         SheetValue { value: Value::Empty, calculated: Value::Empty }
+    }
+
+    fn is_calculated(&self) -> bool {
+        self.value.is_formula() && ! self.calculated.is_empty()
     }
 }
 
@@ -615,9 +625,9 @@ mod tests {
     use crate::errors::Error; 
     use ndarray::arr2; 
 
-    fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> SheetValue {
+    fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> Value {
         let sheet: &Sheet = book.get_sheet_by_name(sheet_name.to_string()); 
-        sheet.values[[row, column]].clone()
+        sheet.values[[row, column]].value.clone()
     }
 
     #[test]
