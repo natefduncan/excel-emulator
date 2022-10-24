@@ -651,7 +651,6 @@ impl SheetFlags {
 mod tests {
     use crate::workbook::{Sheet, Book};
     use crate::evaluate::value::Value;
-    use crate::reference::Reference;
     use crate::parser::parse_str; 
     use crate::errors::Error; 
     use ndarray::arr2; 
@@ -712,8 +711,7 @@ mod tests {
         book.load(false).expect("Could not load workbook"); 
         book.calculate(false, false)?; 
         assert!(book.resolve_str_ref("Sheet1!H7").unwrap()[[0, 0]].as_num() - 7.657 < 0.01); 
-        book.get_mut_sheet_by_name("Sheet1").set_value(Reference::from("F11"), Value::from(20.0)); 
-        book.calculate(false, false)?; 
+        book.set_value("Sheet1!F11", Value::from(20.0)); 
         assert!(book.resolve_str_ref("Sheet1!H7").unwrap()[[0, 0]].as_num() - 19.947 < 0.01); 
         Ok(())
     }
