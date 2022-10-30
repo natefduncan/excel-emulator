@@ -141,6 +141,7 @@ impl Book {
         let mut buf = Vec::new();
         if let Ok(f) = self.zip.as_mut().unwrap().by_name("xl/workbook.xml") {
             let mut reader: Reader<BufReader<ZipFile>> = Reader::<BufReader<ZipFile>>::from_reader(BufReader::new(f)); 
+            let mut sheet_idx: usize = 0; 
             loop {
                 match reader.read_event(&mut buf) {
                     Ok(Event::Empty(ref e)) if e.local_name() == b"sheet" => {
@@ -148,7 +149,8 @@ impl Book {
                             let a = a.unwrap();
                             if let b"name" = a.key {
                                 let name = a.unescape_and_decode_value(&reader).unwrap();
-                                self.sheets.push(Sheet::from(name)); 
+                                self.sheets.push(Sheet::from((name, sheet_idx))); 
+                                sheet_idx += 1; 
                             }
                         }
                     }, 
@@ -188,7 +190,7 @@ impl Book {
                                 let dimension: String = a.unescape_and_decode_value(&reader).unwrap(); 
                                 let (row, column, num_rows, num_cols) = Reference::from(dimension.clone()).get_dimensions(); 
                                 let sheet: &mut Sheet = self.sheets.get_mut(sheet_idx).unwrap();
-                                sheet.cells = Array::from_elem((num_rows + row, num_cols + column), Value::Empty); 
+                                sheet.values = Array::from_elem((num_rows + row, num_cols + column), SheetValue::new()); 
                                 sheet.max_rows = num_rows + row; 
                                 sheet.max_columns = num_cols + column; 
                             }
@@ -266,8 +268,8 @@ impl Book {
                                 let adjusted_formula: Value = Value::Formula(format!("={}", adjust_formula(base_reference, current_reference, formula_text.clone())?)); 
                                 let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
                                 let (row, column): (usize, usize) = current_cell.as_tuple(); 
-                                sheet.cells[[row-1, column-1]] = adjusted_formula.clone(); 
-                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                sheet.values[[row-1, column-1]].value = adjusted_formula.clone(); 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, true)); 
                                 self.dependencies.add_formula(cell_id, &adjusted_formula.to_string(), &self.sheets)?; 
                                 flags.reset(); 
                             }
@@ -310,12 +312,12 @@ impl Book {
                             let (row, column): (usize, usize) = cell.as_tuple(); 
  
                             if value.is_formula() {
-                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, Some(false))); 
+                                let cell_id = CellId::from((sheet_idx, row, column, 1, 1, true)); 
                                 self.dependencies.add_formula(cell_id, &value.to_string(), &self.sheets)?; 
                             }
 
                             let sheet = self.sheets.get_mut(sheet_idx).unwrap(); 
-                            sheet.cells[[row-1, column-1]] = value; 
+                            sheet.values[[row-1, column-1]] = SheetValue { value: value.clone(), calculated: value }; 
                             pb.set_position((row * max_columns + column) as u64); 
                             flags.reset(); 
                         }
@@ -398,43 +400,49 @@ impl Book {
                 None => self.get_sheet_by_idx(self.current_sheet)
             };
             if num_rows == usize::MAX { 
-                num_rows = sheet.cells.dim().0; 
+                num_rows = sheet.values.dim().0; 
                 row = 1; // To avoid subtract overflow on row_idx_start
             }
             if num_cols == usize::MAX { 
-                num_cols = sheet.cells.dim().0; 
+                num_cols = sheet.values.dim().0; 
                 col = 1; // To avoid subtract overflow on col_idx_start
             }
-            let row_idx_start: usize = sheet.cells.dim().0.min(row-1);
-            let row_idx_end: usize = sheet.cells.dim().0.min(row+num_rows-1);
+            let row_idx_start: usize = sheet.values.dim().0.min(row-1);
+            let row_idx_end: usize = sheet.values.dim().0.min(row+num_rows-1);
             let rows_append: usize = num_rows - (row_idx_end - row_idx_start);
-            let col_idx_start: usize = sheet.cells.dim().1.min(col-1);
-            let col_idx_end: usize = sheet.cells.dim().1.min(col+num_cols-1);
+            let col_idx_start: usize = sheet.values.dim().1.min(col-1);
+            let col_idx_end: usize = sheet.values.dim().1.min(col+num_cols-1);
             let cols_append: usize = num_cols - (col_idx_end - col_idx_start);
-            let mut output: Array2<Value> = sheet.cells.slice(s![row_idx_start..row_idx_end, col_idx_start..col_idx_end]).into_owned(); 
+            let mut output: Array2<SheetValue> = sheet.values.slice(s![row_idx_start..row_idx_end, col_idx_start..col_idx_end]).into_owned(); 
             if rows_append > 0 {
                 for _ in 0..rows_append {
-                    output.push(Axis(0), ArrayView::from(&Array::from_elem(output.dim().1, Value::Empty))).unwrap(); 
+                    output.push(Axis(0), ArrayView::from(&Array::from_elem(output.dim().1, SheetValue::new()))).unwrap(); 
                 }
             }
             if cols_append > 0 {
                 for _ in 0..cols_append {
-                    output.push(Axis(1), ArrayView::from(&Array::from_elem(output.dim().0, Value::Empty))).unwrap(); 
+                    output.push(Axis(1), ArrayView::from(&Array::from_elem(output.dim().0, SheetValue::new()))).unwrap(); 
                 }
             }
-            Ok(output)
+            Ok(output.map(|b| {
+                if b.is_calculated() {
+                    b.calculated.clone()
+                } else {
+                    b.value.clone()
+                }
+            }))
         } else {
             panic!("Can only resolve a reference expression.")
         }
     }
 
     pub fn calculate_cell(&mut self, cell_id: &CellId, debug: bool) -> Result<(), Error> {
-        if ! cell_id.calculated.unwrap_or(true) {
+        if cell_id.dirty {
             if debug {
                 println!("======= Calculating cell: {}.{}", cell_id.sheet, Reference::from((cell_id.row, cell_id.column))); 
             } 
             let sheet: &Sheet = self.get_sheet_by_idx(cell_id.sheet); 
-            let cell_value = &sheet.cells[[cell_id.row-1, cell_id.column-1]]; 
+            let cell_value = &sheet.values[[cell_id.row-1, cell_id.column-1]].value; 
             if let Value::Formula(formula_text) = cell_value.clone() {
                 self.current_sheet = cell_id.sheet; 
                 let mut chars = formula_text.chars(); // Remove = at beginning
@@ -444,7 +452,7 @@ impl Book {
                 match new_value_result {
                     Ok(new_value) => {
                         let sheet: &mut Sheet = self.get_mut_sheet_by_idx(cell_id.sheet); 
-                        sheet.cells[[cell_id.row-1, cell_id.column-1]] = ensure_non_range(new_value).ensure_single(); 
+                        sheet.values[[cell_id.row-1, cell_id.column-1]].calculated = ensure_non_range(new_value).ensure_single(); 
                         return Ok(()); 
                     }, 
                     Err(e) => {
@@ -477,7 +485,7 @@ impl Book {
                 pb.inc(1); 
                 match self.calculate_cell(cell_id, debug) {
                     Ok(()) => {
-                        cell_id.calculated = Some(true)
+                        cell_id.dirty = false; 
                     }, 
                     Err(err) => { 
                         match err {
@@ -497,30 +505,90 @@ impl Book {
         }
         Ok(())
     }
+
+    pub fn set_value(&mut self, range: &str, value: Value) {
+        let expr: Expr = parse_str(range).unwrap(); 
+        if let Expr::Reference { sheet, reference } = expr {
+            let sheet_str = sheet.unwrap(); 
+            let sheet = self.get_mut_sheet_by_name(&sheet_str); 
+            let reference = Reference::from(reference); 
+            sheet.set_value(reference, value); 
+            let cell_id = CellId::from((sheet.idx, reference.row(), reference.column(), 1, 1, false)); 
+            self.dependencies.mark_for_recalculation(&cell_id); 
+       } else {
+            panic!("String must resolve to a reference"); 
+        }
+ 
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SheetValue {
+    pub value: Value, 
+    pub calculated: Value
+}
+
+impl From<Value> for SheetValue {
+    fn from(v: Value) -> SheetValue {
+        SheetValue {
+            value: v, 
+            calculated: Value::Empty 
+        }
+    }
+}
+
+impl From<(Value, Value)> for SheetValue {
+    fn from(v: (Value, Value)) -> SheetValue {
+        let (value, calculated) = v; 
+        SheetValue { value, calculated }
+    }
+}
+
+impl SheetValue {
+    fn new() -> SheetValue {
+        SheetValue { value: Value::Empty, calculated: Value::Empty }
+    }
+
+    fn is_calculated(&self) -> bool {
+        self.value.is_formula() && ! self.calculated.is_empty()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Sheet {
     pub name: String,
+    pub idx: usize, 
     pub max_rows: usize, 
     pub max_columns: usize, 
-    pub cells: Array2<Value>
+    pub values: Array2<SheetValue>
 }
 
-impl From<&str> for Sheet {
-    fn from(s: &str) -> Sheet {
-        Sheet::from(s.to_string())
+impl From<(&str, usize)> for Sheet {
+    fn from(s: (&str, usize)) -> Sheet {
+        Sheet::from((s.0.to_string(), s.1))
     }
 }
 
-impl From<String> for Sheet {
-    fn from(s: String) -> Sheet {
+impl From<(String, usize)> for Sheet {
+    fn from(s: (String, usize)) -> Sheet {
         Sheet {
-            name: s, 
+            name: s.0, 
+            idx: s.1, 
             max_rows: 0, 
             max_columns: 0, 
-            cells: Array::from_elem((0, 0), Value::Empty)
+            values: Array::from_elem((0, 0), SheetValue::new())
         }
+    }
+}
+
+impl Sheet {
+    pub fn set_value(&mut self, reference: Reference, value: Value) {
+        let sheet_value = if value.is_formula() {
+            SheetValue {value, calculated: Value::Empty }
+        } else {
+            SheetValue {value: value.clone(), calculated: value}
+        }; 
+        self.values[[reference.row()-1,reference.column()-1]] = sheet_value; 
     }
 }
 
@@ -589,7 +657,7 @@ mod tests {
 
     fn get_cell<'a>(book: &'a Book, sheet_name: &'a str, row: usize, column: usize) -> Value {
         let sheet: &Sheet = book.get_sheet_by_name(sheet_name.to_string()); 
-        sheet.cells[[row, column]].clone()
+        sheet.values[[row, column]].value.clone()
     }
 
     #[test]
@@ -630,10 +698,21 @@ mod tests {
         )); 
         assert_eq!(book.resolve_ref(parse_str("Sheet2!B:B")?)?, arr2(&
             [[Value::Empty], 
-            [Value::from(55.0)], 
+            [Value::from(55.0)],
             [Value::Empty]
             ]
         )); 
+        Ok(())
+    }
+
+    #[test]
+    fn test_set_value() -> Result<(), Error> {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load(false).expect("Could not load workbook"); 
+        book.calculate(false, false)?; 
+        assert!(book.resolve_str_ref("Sheet1!H7").unwrap()[[0, 0]].as_num() - 7.657 < 0.01); 
+        book.set_value("Sheet1!F11", Value::from(20.0)); 
+        assert!(book.resolve_str_ref("Sheet1!H7").unwrap()[[0, 0]].as_num() - 19.947 < 0.01); 
         Ok(())
     }
 }

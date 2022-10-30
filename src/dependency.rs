@@ -1,7 +1,8 @@
 use petgraph::{
     graphmap::DiGraphMap, 
     algo::toposort, 
-    dot::{Dot, Config}
+    dot::{Dot, Config}, 
+    visit::Dfs 
 }; 
 use std::{fmt, cmp::Ordering}; 
 use crate::{
@@ -21,7 +22,7 @@ pub struct CellId {
     pub column: usize,
     pub num_row: usize, 
     pub num_col: usize, 
-    pub calculated: Option<bool>
+    pub dirty: bool 
 }
 
 impl PartialOrd for CellId {
@@ -44,9 +45,9 @@ impl Ord for CellId {
     }
 }
 
-impl From<(usize, usize, usize, usize, usize, Option<bool>)> for CellId {
-    fn from((sheet, row, column, num_row, num_col, calculated) : (usize, usize, usize, usize, usize, Option<bool>)) -> CellId {
-        CellId { sheet, row, column, num_row, num_col, calculated }
+impl From<(usize, usize, usize, usize, usize, bool)> for CellId {
+    fn from((sheet, row, column, num_row, num_col, dirty) : (usize, usize, usize, usize, usize, bool)) -> CellId {
+        CellId { sheet, row, column, num_row, num_col, dirty }
     }
 }
 
@@ -106,17 +107,17 @@ impl DependencyTree {
                 num_cols = num_cols.min(sheet.max_columns); 
                 let pre_cell: CellId; 
                 if reference.is_multi_cell() {
-                    pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols, None)); 
+                    pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols, false)); 
                     if ! self.cell_exists(&pre_cell) {
                         for c in Reference::get_cells_from_dim(start_row, start_col, num_rows, num_cols) {
-                            let sub_cell = CellId::from((sheet_id, c.0, c.1, 1, 1, Some(false))); 
+                            let sub_cell = CellId::from((sheet_id, c.0, c.1, 1, 1, true)); 
                             if sub_cell != pre_cell {
                                 self.add_precedent(&sub_cell, &pre_cell); 
                             }
                         }
                     }
                 } else {
-                    pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols, Some(false))); 
+                    pre_cell = CellId::from((sheet_id, start_row, start_col, num_rows, num_cols, true)); 
                 }
                 if pre_cell != cell {
                     self.add_precedent(&pre_cell, &cell); 
@@ -189,6 +190,13 @@ impl DependencyTree {
             Err(e) => panic!("{:?}", e) 
         } 
     } 
+
+    pub fn mark_for_recalculation(&mut self, root: &CellId) {
+        let mut dfs = Dfs::new(&self.tree, root.clone());
+        while let Some(mut node_id) = dfs.next(&self.tree) {
+            node_id.dirty = true; 
+        }
+    }
 }
 
 impl fmt::Display for DependencyTree {
@@ -204,9 +212,9 @@ mod tests {
     #[test]
     fn test_precedent() {
         let mut tree = DependencyTree::new(); 
-        let a = CellId::from((0,0,0,1,1, Some(false))); 
-        let b = CellId::from((1,0,0,1,1, Some(false))); 
-        let c = CellId::from((2,0,0,1,1, Some(false))); 
+        let a = CellId::from((0,0,0,1,1, true)); 
+        let b = CellId::from((1,0,0,1,1, true)); 
+        let c = CellId::from((2,0,0,1,1, true)); 
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&c, &b); // C must calculate before B 
         assert!(tree.is_dependent_of(&b, &a)); 
@@ -216,9 +224,9 @@ mod tests {
     #[test]
     fn test_order() {
         let mut tree = DependencyTree::new(); 
-        let a = CellId::from((0,0,0,1,1, Some(false))); 
-        let b = CellId::from((1,0,0,1,1, Some(false))); 
-        let c = CellId::from((2,0,0,1,1, Some(false))); 
+        let a = CellId::from((0,0,0,1,1, true)); 
+        let b = CellId::from((1,0,0,1,1, true)); 
+        let c = CellId::from((2,0,0,1,1, true)); 
         tree.add_precedent(&a, &b); // A must calculate before B 
         tree.add_precedent(&b, &c); // B must calculate before C 
         let mut order: Vec<CellId> = tree.get_order(); 
