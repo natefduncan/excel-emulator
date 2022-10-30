@@ -48,6 +48,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"PMT" => Ok(Box::new(Pmt::from(args)).evaluate()),	
 		"COUNTA" => Ok(Box::new(Counta::from(args)).evaluate()),	
 		"ROUNDDOWN" => Ok(Box::new(Rounddown::from(args)).evaluate()),	
+		"SEARCH" => Ok(Box::new(Search::from(args)).evaluate()),	
         _ => Err(Error::FunctionNotSupport(name.to_string()))
     }
 }
@@ -637,6 +638,24 @@ fn rounddown(x: Value, num_digits: Value) -> Value {
     }
 }
 
+// TODO: Wildcard usage
+#[function]
+fn search(find_text: Value, within_text: Value, start_num: Option<Value>) -> Value {
+    let find_text = find_text.as_text().to_lowercase(); 
+    let within_text = within_text.as_text().to_lowercase(); 
+    let start_num = start_num.unwrap_or(Value::from(1.0)).as_num() as usize - 1; 
+    let mut within_text_chars = within_text.chars(); 
+    for _ in 0..start_num {
+        within_text_chars.next(); 
+    }
+    if let Some(idx) =  (&within_text_chars.collect::<String>()).find(&find_text) {
+        Value::from(idx + start_num + 1)
+    } else {
+        Value::Error(ExcelError::Value)
+    }
+}
+ 
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -648,6 +667,14 @@ mod tests {
         errors::Error, 
     };
     use chrono::naive::NaiveDate; 
+
+    #[test]
+    fn test_search() -> Result<(), Error> {
+        assert_eq!(evaluate_str("SEARCH(\"a\",\"Apple\") ")?, Value::from(1.0)); 
+        assert_eq!(evaluate_str("SEARCH(\"the\",\"The cat in the hat\")")?, Value::from(1.0)); 
+        assert_eq!(evaluate_str("SEARCH(\"the\",\"The cat in the hat\",4)")?, Value::from(12.0)); 
+        Ok(())
+    }
 
     #[test]
     fn test_rounddown() -> Result<(), Error> {
