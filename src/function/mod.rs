@@ -436,7 +436,7 @@ fn sumif(range: Value, criteria: Value, sum_range: Option<Value>) -> Value {
 
 fn parse_criteria(c: &str, cell: &Value) -> bool {
     let cell = cell.ensure_single().as_text(); 
-    let op: &str = if c.split("<>").count() > 1 {
+    let mut op: &str = if c.split("<>").count() > 1 {
         "<>"
     } else if c.split("<=").count() > 1 {
         "<="
@@ -451,11 +451,17 @@ fn parse_criteria(c: &str, cell: &Value) -> bool {
     } else {
         "" 
     }; 
+    let lh: String; 
+    let rh: String; 
     if ! op.is_empty() {
-        evaluate_str(format!("\"{}\"{}\"{}\"", c.split(op).collect::<Vec<&str>>()[1], op, cell).as_str()).unwrap().as_bool()
+        lh = c.split(op).collect::<Vec<&str>>()[1].replace("\"", "").to_string(); 
+        rh = cell.replace("\"", ""); 
     } else {
-        evaluate_str(format!("\"{}\"=\"{}\"", c, cell).as_str()).unwrap().as_bool()
+        lh = c.replace("\"", "").to_string(); 
+        rh = cell.replace("\"", ""); 
+        op = "="; 
     } 
+    evaluate_str(format!("\"{}\"{}\"{}\"", lh, op, rh).as_str()).unwrap().as_bool()
 }
 
 #[function]
