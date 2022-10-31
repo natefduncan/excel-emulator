@@ -345,7 +345,11 @@ pub fn offset(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error>
             Err(Error::Volatile(Box::new(new_expr)))
         }
     } else {
-        panic!("First expression must be a Reference.")
+        if array.is_err() {
+            return Ok(array); 
+        } else {
+            panic!("First expression must be a Reference.")
+        }
     }
 }
 

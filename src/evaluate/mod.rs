@@ -131,6 +131,9 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book, debug: bool) -> Resul
                         Value::Range {sheet: _, reference: _, value } => {
                             Value::from(value.unwrap().as_array2())
                         }, 
+                        Value::Error(_) => {
+                            return Ok(offset_value); 
+                        }, 
                         _ => unreachable!()
                     }
                 }, 
