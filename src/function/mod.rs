@@ -54,6 +54,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"COUNTIF" => Ok(Box::new(Countif::from(args)).evaluate()),	
 		"MONTH" => Ok(Box::new(Month::from(args)).evaluate()),	
 		"YEAR" => Ok(Box::new(Year::from(args)).evaluate()),	
+		"SUMPRODUCT" => Ok(Box::new(Sumproduct::from(args)).evaluate()),	
         _ => Err(Error::FunctionNotSupport(name.to_string()))
     }
 }
@@ -548,7 +549,19 @@ fn averageifs(average_range: Value, args: Vec<Value>) -> Value {
         .sum::<f64>()/average_range_filter.len() as f64) 
 } 
 
-
+#[function]
+fn sumproduct(args: Vec<Value>) -> Value {
+    let args: Vec<Vec<Value>> = args.into_iter().map(|x| x.as_array()).collect(); 
+    let mut output = Value::from(0.0); 
+    for i in 0..args[0].len() {
+        let mut a = Value::from(1.0); 
+        for j in 0..args.len() {
+            a = a * args[j][i].clone(); 
+        }
+        output += a; 
+    }
+    output
+}
 
 #[function]
 fn xirrfunc(values: Value, dates: Value) -> Value {
@@ -740,6 +753,7 @@ fn year(date: Value) -> Value {
     Value::from(date.as_date().year() as f64)
 }
 
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -751,6 +765,15 @@ mod tests {
         errors::Error, 
     };
     use chrono::naive::NaiveDate; 
+
+    #[test]
+    fn test_sumproduct() -> Result<(), Error> {
+        let mut book = Book::from("assets/functions.xlsx"); 
+        book.load(false).unwrap(); 
+        book.calculate(false, false)?; 
+        assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_num(), 530.0); 
+        Ok(())
+    }
 
     #[test]
     fn test_search() -> Result<(), Error> {
