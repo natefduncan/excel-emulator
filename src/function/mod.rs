@@ -49,6 +49,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"COUNTA" => Ok(Box::new(Counta::from(args)).evaluate()),	
 		"ROUNDDOWN" => Ok(Box::new(Rounddown::from(args)).evaluate()),	
 		"SEARCH" => Ok(Box::new(Search::from(args)).evaluate()),	
+		"COUNTIF" => Ok(Box::new(Countif::from(args)).evaluate()),	
         _ => Err(Error::FunctionNotSupport(name.to_string()))
     }
 }
@@ -655,6 +656,29 @@ fn search(find_text: Value, within_text: Value, start_num: Option<Value>) -> Val
     }
 }
  
+#[function]
+fn countif(range: Value, criteria: Value) -> Value {
+    let mut keep_index: Vec<usize> = vec![]; 
+    let range: Vec<Value> = range.as_array(); 
+    let criteria = criteria.ensure_single(); 
+    let criteria_text = format!("{}", criteria); 
+    for (i, cell) in range.iter().enumerate() {
+        let eval = parse_criteria(criteria_text.as_str(), cell); 
+        if eval && !keep_index.contains(&i) {
+            keep_index.push(i); 
+        }
+    } 
+    Value::from(range
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, v)| match keep_index.contains(&i) {
+            true => Some(v.as_num()), 
+            false => None
+        }) 
+        .collect::<Vec<f64>>()
+        .iter()
+        .count())
+} 
 
 #[cfg(test)]
 mod tests {
