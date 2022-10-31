@@ -39,6 +39,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
         },	
 		"EOMONTH" => Ok(Box::new(Eomonth::from(args)).evaluate()),	
 		"SUMIFS" => Ok(Box::new(Sumifs::from(args)).evaluate()),	
+		"COUNTIFS" => Ok(Box::new(Countifs::from(args)).evaluate()),	
 		"AVERAGEIFS" => Ok(Box::new(Averageifs::from(args)).evaluate()),	
 		"XIRR" => Ok(Box::new(Xirrfunc::from(args)).evaluate()),	
 		"IF" => Ok(Box::new(Iffunc::from(args)).evaluate()),	
@@ -407,6 +408,30 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         .iter()
         .sum::<f64>()) 
 } 
+
+#[function]
+fn countifs(args: Vec<Value>) -> Value {
+    let mut keep_index: Vec<usize> = vec![]; 
+    for (idx, i) in (0..args.len()).step_by(2).enumerate() {
+        let cell_range: Vec<Value> = args.get(i).unwrap().as_array();
+        let criteria: Value = args.get(i+1).unwrap().ensure_single(); 
+        let criteria_text = criteria.as_text(); 
+        for (y, cell) in cell_range.iter().enumerate() {
+            let eval: bool = parse_criteria(criteria_text.as_str(), cell); 
+            if idx == 0 {
+                if eval {
+                    keep_index.push(y); 
+                }
+            } else {
+                if ! eval && keep_index.contains(&y) {
+                    keep_index.retain(|x| x != &y); 
+                }
+           }
+       } 
+    }
+    Value::from(keep_index.len())
+} 
+
 
 #[function]
 fn sumif(range: Value, criteria: Value, sum_range: Option<Value>) -> Value {
