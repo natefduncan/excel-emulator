@@ -5,7 +5,8 @@ use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};
 use ndarray::Array2; 
 
 use crate::reference::Reference;
-use crate::parser::ast::Error; 
+use crate::parser::ast::Error;
+use crate::utils::excel_to_date; 
 
 type NumType = f64;
 type BoolType = bool;
@@ -116,6 +117,7 @@ impl Value {
             Value::Array2(arr2) => {
                 arr2[[0,0]].as_date()
             }, 
+            Value::Num(n) => excel_to_date(*n), 
             _ => panic!("{} cannot be converted to a date.", self)
         }
     }
