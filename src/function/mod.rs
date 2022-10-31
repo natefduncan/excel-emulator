@@ -48,6 +48,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"PMT" => Ok(Box::new(Pmt::from(args)).evaluate()),	
 		"COUNTA" => Ok(Box::new(Counta::from(args)).evaluate()),	
 		"ROUNDDOWN" => Ok(Box::new(Rounddown::from(args)).evaluate()),	
+		"ROUNDUP" => Ok(Box::new(Roundup::from(args)).evaluate()),	
 		"SEARCH" => Ok(Box::new(Search::from(args)).evaluate()),	
 		"COUNTIF" => Ok(Box::new(Countif::from(args)).evaluate()),	
 		"MONTH" => Ok(Box::new(Month::from(args)).evaluate()),	
@@ -633,6 +634,7 @@ fn counta(args: Vec<Value>) -> Value {
     )
 }
 
+//FIXME
 #[function]
 fn rounddown(x: Value, num_digits: Value) -> Value {
     let x: f64 = x.as_num(); 
@@ -645,6 +647,21 @@ fn rounddown(x: Value, num_digits: Value) -> Value {
         Value::from((x as i64) as f64)
     }
 }
+
+//FIXME
+#[function]
+fn roundup(x: Value, num_digits: Value) -> Value {
+    let x: f64 = x.as_num(); 
+    let num_digits: f64 = num_digits.as_num(); 
+    if num_digits > 0.0 {
+        Value::from((((x * 10.0_f64.powf(num_digits)) as i64 + x.signum() as i64) as f64) / 10.0_f64.powf(num_digits))
+    } else if num_digits < 0.0 {
+        Value::from((((x / 10.0_f64.powf(-num_digits)) as i64 + x.signum() as i64) as f64) * 10.0_f64.powf(-num_digits))
+    } else {
+        Value::from((x as i64 + x.signum() as i64) as f64)
+    }
+}
+
 
 // TODO: Wildcard usage
 #[function]
@@ -721,6 +738,18 @@ mod tests {
         assert_eq!(evaluate_str("ROUNDDOWN(31415.92654, -2)")?, Value::from(31400)); 
         Ok(())
     }
+
+    #[test]
+    fn test_roundup() -> Result<(), Error> {
+        assert_eq!(evaluate_str("ROUNDUP(3.2, 0)")?, Value::from(4.0)); 
+        assert_eq!(evaluate_str("ROUNDUP(76.9, 0)")?, Value::from(77.0)); 
+        assert_eq!(evaluate_str("ROUNDUP(3.14159, 3)")?, Value::from(3.142)); 
+        assert_eq!(evaluate_str("ROUNDUP(-3.14159, 1)")?, Value::from(-3.2)); 
+        assert_eq!(evaluate_str("ROUNDUP(31415.92654, -2)")?, Value::from(31500)); 
+        Ok(())
+    }
+
+
 
     #[test]
     fn test_counta() -> Result<(), Error> {
