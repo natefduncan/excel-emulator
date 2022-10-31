@@ -53,6 +53,7 @@ pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> 
 		"SEARCH" => Ok(Box::new(Search::from(args)).evaluate()),	
 		"COUNTIF" => Ok(Box::new(Countif::from(args)).evaluate()),	
 		"MONTH" => Ok(Box::new(Month::from(args)).evaluate()),	
+		"YEAR" => Ok(Box::new(Year::from(args)).evaluate()),	
         _ => Err(Error::FunctionNotSupport(name.to_string()))
     }
 }
@@ -732,6 +733,11 @@ fn countif(range: Value, criteria: Value) -> Value {
 #[function]
 fn month(date: Value) -> Value {
     Value::from(date.as_date().month() as f64)
+}
+
+#[function]
+fn year(date: Value) -> Value {
+    Value::from(date.as_date().year() as f64)
 }
 
 #[cfg(test)]
