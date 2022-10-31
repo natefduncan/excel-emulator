@@ -43,35 +43,41 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
 			}
 		}, 
 		Expr::Infix(i, a, b) => {
-			match i {
-				Infix::Plus => evaluate_expr(*a)? + evaluate_expr(*b)?, 
-				Infix::Minus => evaluate_expr(*a)? - evaluate_expr(*b)?, 
-				Infix::Multiply => evaluate_expr(*a)? * evaluate_expr(*b)?, 
-				Infix::Divide => evaluate_expr(*a)? / evaluate_expr(*b)?, 
-				Infix::Exponent => Exponent {a: evaluate_expr(*a)?, b: evaluate_expr(*b)?}.evaluate(), 
-				Infix::NotEqual => Value::from(evaluate_expr(*a)? != evaluate_expr(*b)?), 
-				Infix::Equal => Value::from(evaluate_expr(*a)? == evaluate_expr(*b)?), 
-				Infix::LessThan => Value::from(evaluate_expr(*a)? < evaluate_expr(*b)?), 
-				Infix::LessThanEqual => Value::from(evaluate_expr(*a)? <= evaluate_expr(*b)?), 
-				Infix::GreaterThan => Value::from(evaluate_expr(*a)? > evaluate_expr(*b)?), 
-				Infix::GreaterThanEqual => Value::from(evaluate_expr(*a)? >= evaluate_expr(*b)?), 
-                Infix::Ampersand => {
-                    let a = evaluate_expr(*a)?; 
-                    let b = evaluate_expr(*b)?; 
-                    let value = if a.is_array() {
-                        Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
-                    } else if b.is_array() {
-                        Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
-                    } else {
-                        Value::from(format!("{}{}", a.as_text(), b.as_text()))
-                    }; 
-                    value
-                },
-			}
-		}, 
-		Expr::Array(x) => Value::Array(x.into_iter().map(|x| evaluate_expr(x).unwrap()).collect::<Vec<Value>>()), 
+            let a = evaluate_expr(*a)?; 
+            let b = evaluate_expr(*b)?; 
+            if a.is_err() {
+                return Ok(a); 
+            } else if b.is_err() {
+                return Ok(b); 
+            } else {
+                match i {
+                    Infix::Plus => a + b, 
+                    Infix::Minus => a - b, 
+                    Infix::Multiply => a * b, 
+                    Infix::Divide => a / b, 
+                    Infix::Exponent => Exponent {a, b}.evaluate(), 
+                    Infix::NotEqual => Value::from(a != b), 
+                    Infix::Equal => Value::from(a == b), 
+                    Infix::LessThan => Value::from(a < b), 
+                    Infix::LessThanEqual => Value::from(a <= b), 
+                    Infix::GreaterThan => Value::from(a > b), 
+                    Infix::GreaterThanEqual => Value::from(a >= b), 
+                    Infix::Ampersand => {
+                        let value = if a.is_array() {
+                            Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
+                        } else if b.is_array() {
+                            Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
+                        } else {
+                            Value::from(format!("{}{}", a.as_text(), b.as_text()))
+                        }; 
+                        value
+                    },
+                }
+            }
+        }, 
+        Expr::Array(x) => Value::Array(x.into_iter().map(|x| evaluate_expr(x).unwrap()).collect::<Vec<Value>>()), 
         Expr::Error(err) => Value::Error(err), 
-		_ => panic!("Expression {:?} does not convert to a value.", expr)  
+        _ => panic!("Expression {:?} does not convert to a value.", expr)  
 	}; 
     Ok(value)
 }
@@ -151,32 +157,38 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book, debug: bool) -> Resul
 			}
 		}, 
 		Expr::Infix(i, a, b) => {
-			match i {
-				Infix::Plus => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() + ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
-				Infix::Minus => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() - ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
-				Infix::Multiply => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() * ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
-				Infix::Divide => ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() / ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(), 
-				Infix::Exponent => Exponent {a: ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single(), b: ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()}.evaluate(), 
-				Infix::NotEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() != ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
-				Infix::Equal => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() == ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
-				Infix::LessThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() < ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
-				Infix::LessThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() <= ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
-				Infix::GreaterThan => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() > ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
-                Infix::GreaterThanEqual => Value::from(ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single() >= ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single()), 
-                Infix::Ampersand => {
-                    let a = evaluate_expr_with_context(*a, book, debug)?; 
-                    let b = evaluate_expr_with_context(*b, book, debug)?; 
-                    let value = if a.is_array() {
-                        Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
-                    } else if b.is_array() {
-                        Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
-                    } else {
-                        Value::from(format!("{}{}", a.as_text(), b.as_text()))
-                    }; 
-                    value
-                },
-			}
-		}, 
+            let a = ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single(); 
+            let b = ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(); 
+            if a.is_err() {
+                return Ok(a); 
+            } else if b.is_err() {
+                return Ok(b); 
+            } else {
+                match i {
+                    Infix::Plus => a.ensure_single() + b.ensure_single(), 
+                    Infix::Minus => a.ensure_single() - b.ensure_single(), 
+                    Infix::Multiply => a.ensure_single() * b.ensure_single(), 
+                    Infix::Divide => a.ensure_single() / b.ensure_single(), 
+                    Infix::Exponent => Exponent {a, b}.evaluate(), 
+                    Infix::NotEqual => Value::from(a.ensure_single() != b.ensure_single()), 
+                    Infix::Equal => Value::from(a.ensure_single() == b.ensure_single()), 
+                    Infix::LessThan => Value::from(a.ensure_single() < b.ensure_single()), 
+                    Infix::LessThanEqual => Value::from(a.ensure_single() <= b.ensure_single()), 
+                    Infix::GreaterThan => Value::from(a.ensure_single() > b.ensure_single()), 
+                    Infix::GreaterThanEqual => Value::from(a.ensure_single() >= b.ensure_single()), 
+                    Infix::Ampersand => {
+                        let value = if a.is_array() {
+                            Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
+                        } else if b.is_array() {
+                            Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
+                        } else {
+                            Value::from(format!("{}{}", a.as_text(), b.as_text()))
+                        }; 
+                        value
+                    },
+                }
+            } 
+        }, 
 		Expr::Array(x) => Value::Array(x.into_iter().map(|e| ensure_non_range(evaluate_expr_with_context(e, book, debug).unwrap())).collect::<Vec<Value>>()), 
         _ => panic!("Expression {:?} does not convert to a value.", expr)  
 	}; 
