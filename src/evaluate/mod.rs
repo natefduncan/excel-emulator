@@ -154,14 +154,15 @@ pub fn evaluate_expr_with_context(expr: Expr, book: &Book, debug: bool) -> Resul
 			}
 		},
 		Expr::Prefix(p, box_expr) => { 
+            let a: Value = ensure_non_range(evaluate_expr_with_context(*box_expr, book, debug)?);
 			match p {
-				Prefix::Plus => Value::from(ensure_non_range(evaluate_expr_with_context(*box_expr, book, debug)?).as_num().abs()),
-				Prefix::Minus => ensure_non_range(evaluate_expr_with_context(*box_expr, book, debug)?) * Value::from(-1.0)
+				Prefix::Plus => Value::from(a.as_num().abs()),
+				Prefix::Minus => a * Value::from(-1.0)
 			}
 		}, 
 		Expr::Infix(i, a, b) => {
-            let a = ensure_non_range(evaluate_expr_with_context(*a, book, debug)?).ensure_single(); 
-            let b = ensure_non_range(evaluate_expr_with_context(*b, book, debug)?).ensure_single(); 
+            let a = ensure_non_range(evaluate_expr_with_context(*a, book, debug)?); 
+            let b = ensure_non_range(evaluate_expr_with_context(*b, book, debug)?); 
             if a.is_err() {
                 return Ok(a); 
             } else if b.is_err() {
