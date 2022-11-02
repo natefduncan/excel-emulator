@@ -40,6 +40,10 @@ enum Commands {
     }, 
 }
 
+// 16355
+// 9154
+// 9155
+
 fn main() -> Result<(), Error> {
     let cli = Cli::parse();
     let mut book: Book = Book::from(cli.path); 
@@ -50,7 +54,9 @@ fn main() -> Result<(), Error> {
             println!("{}", book.dependencies); 
         }, 
         Some(Commands::Order) => {
-            println!("{:?}", book.dependencies.get_order()); 
+            for o in book.dependencies.get_order().iter() {
+                println!("{:?}", o); 
+            }
         }, 
         Some(Commands::Sheets) => {
             println!("{:?}", book.sheets.iter().map(|x| x.name.clone()).collect::<Vec<String>>()); 
