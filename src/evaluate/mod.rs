@@ -94,7 +94,6 @@ pub fn offset_expr(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Expr, Er
         let width_opt: Option<i32> = width.map(|w| {
             evaluate_expr_with_context(w.clone(), book, debug).unwrap().as_num() as i32 
         }); 
-        println!("{:?},{:?},{:?},{:?}", rows, cols, height_opt, width_opt); 
         let new_reference = offset_reference(&mut Reference::from(reference.as_str()), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
         Ok(Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() })
     } else {
