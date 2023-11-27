@@ -24,3 +24,8 @@
 
 /target
 /Cargo.lock
+*.svg
+*.data
+*.data.old
+*.txt
+*.sc
