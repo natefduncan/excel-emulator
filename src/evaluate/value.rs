@@ -4,7 +4,6 @@ use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
 use ndarray::Array2; 
 
-use crate::reference::Reference;
 use crate::parser::ast::Error;
 use crate::utils::excel_to_date; 
 
@@ -24,9 +23,7 @@ pub enum Value {
     Date(DateType), 
     Array(ArrayType), 
     Array2(Array2Type), 
-    Formula(TextType), 
     Error(ErrorType), 
-    Range { sheet: Option<String>, reference: Reference, value: Option<Box<Value>> }, 
     Empty
 }
 
@@ -48,8 +45,6 @@ impl Value {
     pub fn is_array(&self) -> bool { matches!(self, Value::Array(_)) }
     pub fn is_array2(&self) -> bool { matches!(self, Value::Array2(_)) }
     pub fn is_empty(&self) -> bool { matches!(self, Value::Empty) }
-    pub fn is_formula(&self) -> bool { matches!(self, Value::Formula(_)) }
-    pub fn is_range(&self) -> bool { matches!(self, Value::Range {sheet: _, reference: _, value: _}) }
     pub fn is_err(&self) -> bool { matches!(self, Value::Error(_)) }
 
     pub fn ensure_single(&self) -> Value {
@@ -102,8 +97,7 @@ impl Value {
 
     pub fn as_text(&self) -> TextType {
         match self {
-            Value::Text(x) 
-                | Value::Formula(x) => x.clone(), 
+            Value::Text(x) => x.clone(), 
             Value::Array2(arr2) => { // Assume single cell
                 arr2[[0,0]].as_text()
             }, 
@@ -120,7 +114,7 @@ impl Value {
             Value::Num(n) => excel_to_date(*n), 
             _ => panic!("{} cannot be converted to a date.", self)
         }
-    }
+    }To order different value types
 
     pub fn as_array(&self) -> ArrayType {
         match self {
@@ -158,7 +152,6 @@ impl fmt::Display for Value {
             }, 
             Value::Bool(x) => { write!(f, "{}", if *x { "TRUE" } else { "FALSE" }) }, 
             Value::Text(x) => { write!(f, "\"{}\"", x) },
-            Value::Formula(x) => { write!(f, "{}", x) }, 
             Value::Date(x) => { write!(f, "{}", x) }, 
             Value::Array(x) => {
                 x.iter().fold(Ok(()), |result, output| {
@@ -166,12 +159,6 @@ impl fmt::Display for Value {
                 })
             }, 
             Value::Empty => { write!(f, "\"\"") }
-            Value::Range {sheet, reference, value: _} => { 
-                match sheet {
-                    Some(s) => write!(f, "{}!{}", s, reference), 
-                    None => write!(f, "{}", reference)
-                }
-            }, 
             Value::Array2(arr2) => write!(f, "{}", arr2), 
             Value::Error(err) => write!(f, "{}", err)
         }
@@ -180,6 +167,7 @@ impl fmt::Display for Value {
 
 impl Eq for Value { }
 
+// To order different value types
 fn variant_ord(v : &Value) -> usize {
     let variants : Vec<bool> = vec![
         v.is_bool(),
