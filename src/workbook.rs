@@ -15,8 +15,6 @@ use ndarray::{Array2, Array, s, Axis, ArrayView};
 use crate::{
     evaluate::{
         value::Value, 
-        evaluate_expr_with_context, 
-        ensure_non_range
     }, 
     utils::adjust_formula, 
     dependency::{CellId, DependencyTree}, 

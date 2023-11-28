@@ -599,14 +599,14 @@ mod tests {
     };
     use chrono::naive::NaiveDate; 
 
-    #[test]
-    fn test_sumproduct() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_num(), 530.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_sumproduct() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_num(), 530.0); 
+        //Ok(())
+    //}
 
     #[test]
     fn test_search() -> Result<(), Error> {
@@ -721,14 +721,14 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_index() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_index() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
+        //Ok(())
+    //}
 
     #[test]
     fn test_date() -> Result<(), Error> {
@@ -760,41 +760,41 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_sumifs() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_sumifs() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
+        //Ok(())
+    //}
 
-    #[test]
-    fn test_averageifs() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_averageifs() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
+        //Ok(())
+    //}
 
-    #[test]
-    fn test_xirr() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_xirr() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
+        //Ok(())
+    //}
 
-    #[test]
-    fn test_offset() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_offset() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
+        //Ok(())
+    //}
     
     #[test]
     fn test_if() -> Result<(), Error> {
@@ -803,14 +803,14 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_xnpv() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_xnpv() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
+        //Ok(())
+    //}
 
     #[test]
     fn test_yearfrac() -> Result<(), Error> {

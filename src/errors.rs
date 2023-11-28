@@ -1,11 +1,11 @@
 use thiserror::Error; 
-use crate::dependency::CellId; 
+//use crate::dependency::CellId; 
 use crate::parser::ast::Expr; 
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Unable to calculate cell {0} with error {1}")]
-    Calculation(CellId, Box<Error>), 
+    //#[error("Unable to calculate cell {0} with error {1}")]
+    //Calculation(CellId, Box<Error>), 
 
     #[error("Function {0} is not supported")]
     FunctionNotSupport(String),

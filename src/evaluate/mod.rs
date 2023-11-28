@@ -1,6 +1,6 @@
 use crate::{
     parser::{
-        ast::{Literal, Prefix, Infix, Expr}, 
+        ast::{Literal, Prefix, Infix, Expr, Error as AstError}, 
         parse_str
     }, 
     function::*, 
@@ -57,7 +57,7 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
                 "MONTH" => Month::from(args).evaluate(),	
                 "YEAR" => Year::from(args).evaluate(),	
                 "SUMPRODUCT" => Sumproduct::from(args).evaluate(),	
-                _ => Value::Error(Error::FunctionNotSupport(name.to_string()))
+                _ => Value::Error(AstError::Name)
             }
         }, 
         Expr::Literal(lit) => {
