@@ -114,7 +114,7 @@ impl Value {
             Value::Num(n) => excel_to_date(*n), 
             _ => panic!("{} cannot be converted to a date.", self)
         }
-    }To order different value types
+    }
 
     pub fn as_array(&self) -> ArrayType {
         match self {

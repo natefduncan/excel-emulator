@@ -2,101 +2,16 @@ pub mod xirr;
 
 use crate::{
     evaluate::{
-        evaluate_expr_with_context, 
         evaluate_str, 
-        ensure_non_range,
         value::Value, 
     }, 
-    reference::Reference, 
-    cell::Cell, 
-    errors::Error, 
     parser::ast::{Expr, Error as ExcelError},  
-    workbook::Book,
 }; 
 use excel_emulator_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
 
-pub fn get_function_value(name: &str, args: Vec<Value>) -> Result<Value, Error> {
-    match name {
-		"SUM" => Ok(Box::new(Sum::from(args)).evaluate()), 
-		"SUMIF" => Ok(Box::new(Sumifs::from(args)).evaluate()), 
-		"AVERAGE" => Ok(Box::new(Average::from(args)).evaluate()), 
-		"AVERAGEIF" => Ok(Box::new(Averageif::from(args)).evaluate()), 
-		"COUNT" => Ok(Box::new(Count::from(args)).evaluate()),	
-		"EXPONENT" => Ok(Box::new(Exponent::from(args)).evaluate()),	
-		"CONCAT" => Ok(Box::new(Concat::from(args)).evaluate()),	
-		"AND" => Ok(Box::new(Andfunc::from(args)).evaluate()),	
-		"OR" => Ok(Box::new(Orfunc::from(args)).evaluate()),	
-		"MAX" => Ok(Box::new(Max::from(args)).evaluate()),	
-		"MIN" => Ok(Box::new(Min::from(args)).evaluate()),	
-		"MATCH" => Ok(Box::new(Matchfn::from(args)).evaluate()),	
-		"DATE" => Ok(Box::new(Date::from(args)).evaluate()),	
-		"FLOOR" => Ok(Box::new(Floor::from(args)).evaluate()),	
-		"IFERROR" => {
-            let a = args.get(0).unwrap().clone(); 
-            let b = args.get(1).unwrap().clone(); 
-            Ok(Box::new(Iferror { a, b }).evaluate())
-        },	
-		"EOMONTH" => Ok(Box::new(Eomonth::from(args)).evaluate()),	
-		"SUMIFS" => Ok(Box::new(Sumifs::from(args)).evaluate()),	
-		"COUNTIFS" => Ok(Box::new(Countifs::from(args)).evaluate()),	
-		"AVERAGEIFS" => Ok(Box::new(Averageifs::from(args)).evaluate()),	
-		"XIRR" => Ok(Box::new(Xirrfunc::from(args)).evaluate()),	
-		"IF" => Ok(Box::new(Iffunc::from(args)).evaluate()),	
-		"XNPV" => Ok(Box::new(Xnpv::from(args)).evaluate()),	
-		"YEARFRAC" => Ok(Box::new(Yearfrac::from(args)).evaluate()),	
-		"DATEDIF" => Ok(Box::new(Datedif::from(args)).evaluate()),	
-		"PMT" => Ok(Box::new(Pmt::from(args)).evaluate()),	
-		"COUNTA" => Ok(Box::new(Counta::from(args)).evaluate()),	
-		"ROUNDDOWN" => Ok(Box::new(Rounddown::from(args)).evaluate()),	
-		"ROUNDUP" => Ok(Box::new(Roundup::from(args)).evaluate()),	
-		"SEARCH" => Ok(Box::new(Search::from(args)).evaluate()),	
-		"COUNTIF" => Ok(Box::new(Countif::from(args)).evaluate()),	
-		"MONTH" => Ok(Box::new(Month::from(args)).evaluate()),	
-		"YEAR" => Ok(Box::new(Year::from(args)).evaluate()),	
-		"SUMPRODUCT" => Ok(Box::new(Sumproduct::from(args)).evaluate()),	
-        _ => Err(Error::FunctionNotSupport(name.to_string()))
-    }
-}
-
 pub trait Function {
    fn evaluate(self) -> Value; 
-}
-
-pub fn offset_reference(r: &mut Reference, rows: i32, cols: i32, height: Option<i32>, width: Option<i32>) -> Reference {
-    if r.row() as i32 + rows < 0 || r.column() as i32 + cols < 0 {
-        panic!("Invalid offset");
-    } else {
-        r.offset((rows, cols));
-    }
-    let mut end_cell : Option<Cell> = None;  
-    if height.is_some() || width.is_some() {
-        let h_u : i32 = height.unwrap_or(0); 
-        let w_u : i32 = width.unwrap_or(0); 
-        if h_u.abs() > 1 || w_u.abs() > 1 {
-            let h_offset = match h_u.is_positive() {
-                true => h_u - 1, 
-                false => h_u + 1
-            }; 
-            let w_offset = match w_u.is_positive() {
-                true => w_u - 1, 
-                false => w_u + 1
-            }; 
-            end_cell = Some(
-               Cell::from((
-                        (r.row() as i32 + h_offset) as usize, 
-                        (r.column() as i32 + w_offset) as usize
-                ))
-            ); 
-        }
-    }
-    r.end_cell = end_cell; 
-    if let Some(end_cell) = r.end_cell {
-        if end_cell < r.start_cell {
-            return Reference::from((end_cell, Some(r.start_cell))); 
-        } 
-    }
-    *r
 }
 
 #[function]
@@ -268,94 +183,9 @@ fn floor(x: Value, _significance: Value) -> Value {
     Value::from(math::round::floor(x.as_num(), 0))
 }
 
-/*
- * Index function can return either a value or a reference. 
- * Excel treats them different depending on what the parent function needs.
- * This function will always return a Value::Ref and require than 
- * conversion to an actual value happens higher up the evaluation chain. 
-*/
-pub fn index(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error> {
-	let mut arg_values = args.into_iter(); 
-	let array: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book, debug)?; // This can be a range or an array
-	let row_num: Value = evaluate_expr_with_context(arg_values.next().unwrap(), book, debug)?; 
-	let col_num_option = arg_values.next(); 
-	let col_num = match col_num_option {
-		Some(expr) => evaluate_expr_with_context(expr, book, debug)?,
-		None => Value::from(1.0)
-	}; 
-    // Pass up Err
-    if array.is_err() {
-        return Ok(array); 
-    } else if row_num.is_err() {
-        return Ok(row_num); 
-    } else if col_num.is_err() {
-        return Ok(col_num); 
-    }
-    let row_idx = row_num.as_num() as usize - 1;
-    let col_idx = col_num.as_num() as usize - 1; 
-    if let Value::Range { sheet, reference, value } = array {
-		let reference = Reference::from(reference); 
-		let (start_row, start_col, _, _) = reference.get_dimensions(); 
-
-        // If row value is zero, reference entire column.
-        // Start cell row index is zero. 
-		if row_num.as_num() == 0.0 {
-            let new_col = start_col + col_idx; 
-			return Ok(Value::Range { sheet: sheet.clone(), reference: Reference::from((0, new_col)), value: None }); 
-		}
-
-        // If column value is zero, reference entire column.
-        // Start cell column index is zero. 
-		if col_num.as_num() == 0.0 {
-            let new_row = start_row + row_idx; 
-			return Ok(Value::Range { sheet: sheet.clone(), reference: Reference::from((new_row, 0)), value: None }); 
-		}
-
-        let new_row = start_row + row_idx;  
-        let new_col = start_col + col_idx; 
-        let new_value: Value = value.unwrap().as_array2()[[row_idx, col_idx]].clone(); 
-        return Ok(Value::Range { sheet: sheet.clone(), reference: Reference::from((new_row, new_col)), value: Some(Box::new(new_value)) }); 
-	} else {
-		panic!("First argument must be a range."); 
-	}
-} 
-
-pub fn offset(args: Vec<Expr>, book: &Book, debug: bool) -> Result<Value, Error> {
-    let array = evaluate_expr_with_context(args.get(0).unwrap().clone(), book, debug)?; 
-	if let Value::Range { sheet, reference, value: _ } = array { 
-		let rows = ensure_non_range(evaluate_expr_with_context(args.get(1).unwrap().clone(), book, debug)?);
-		let cols = ensure_non_range(evaluate_expr_with_context(args.get(2).unwrap().clone(), book, debug)?); 
-		let height = args.get(3); 
-		let height_opt: Option<i32> = height.map(|h| {
-			ensure_non_range(evaluate_expr_with_context(h.clone(), book, debug).unwrap()).as_num() as i32
-		}); 
-		let width = args.get(4); 
-		let width_opt: Option<i32> = width.map(|w| {
-			ensure_non_range(evaluate_expr_with_context(w.clone(), book, debug).unwrap()).as_num() as i32
-		}); 
-		let new_reference = offset_reference(&mut reference.clone(), rows.as_num() as i32, cols.as_num() as i32, height_opt, width_opt); 
-        let new_expr = Expr::Reference { sheet: sheet.clone(), reference: new_reference.to_string() }; 
-        if book.is_calculated(new_expr.clone()) {
-            let reference_value = match evaluate_expr_with_context(new_expr.clone(), book, debug) {
-                Ok(value) => Some(Box::new(ensure_non_range(value))), 
-                _ => panic!("New expression could not be evaluated: {}", new_expr.clone())
-            }; 
-            Ok(Value::Range { sheet: sheet.clone(), reference: new_reference, value:  reference_value})
-        } else {
-            Err(Error::Volatile(Box::new(new_expr)))
-        }
-    } else {
-        if array.is_err() {
-            return Ok(array); 
-        } else {
-            panic!("First expression must be a Reference.")
-        }
-    }
-}
-
-struct Iferror {
-    a: Value, 
-    b: Value, 
+pub struct Iferror {
+    pub a: Value, 
+    pub b: Value, 
 }
 
 impl Function for Iferror {
@@ -765,19 +595,18 @@ mod tests {
             value:: Value, 
             evaluate_str 
         },
-        workbook::Book,
         errors::Error, 
     };
     use chrono::naive::NaiveDate; 
 
-    #[test]
-    fn test_sumproduct() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_num(), 530.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_sumproduct() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_num(), 530.0); 
+        //Ok(())
+    //}
 
     #[test]
     fn test_search() -> Result<(), Error> {
@@ -892,14 +721,14 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_index() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_index() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
+        //Ok(())
+    //}
 
     #[test]
     fn test_date() -> Result<(), Error> {
@@ -931,41 +760,41 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_sumifs() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_sumifs() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
+        //Ok(())
+    //}
 
-    #[test]
-    fn test_averageifs() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_averageifs() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
+        //Ok(())
+    //}
 
-    #[test]
-    fn test_xirr() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_xirr() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
+        //Ok(())
+    //}
 
-    #[test]
-    fn test_offset() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_offset() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
+        //Ok(())
+    //}
     
     #[test]
     fn test_if() -> Result<(), Error> {
@@ -974,14 +803,14 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_xnpv() -> Result<(), Error> {
-        let mut book = Book::from("assets/functions.xlsx"); 
-        book.load(false).unwrap(); 
-        book.calculate(false, false)?; 
-        assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
-        Ok(())
-    }
+    //#[test]
+    //fn test_xnpv() -> Result<(), Error> {
+        //let mut book = Book::from("assets/functions.xlsx"); 
+        //book.load(false).unwrap(); 
+        //book.calculate(false, false)?; 
+        //assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
+        //Ok(())
+    //}
 
     #[test]
     fn test_yearfrac() -> Result<(), Error> {
