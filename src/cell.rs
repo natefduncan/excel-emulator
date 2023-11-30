@@ -94,7 +94,7 @@ impl From<String> for Cell {
             }
             Cell {
                 row: CellIndex::from((0, false)), 
-                column: CellIndex::from((col as usize, col_anchor))
+                column: CellIndex::from((col, col_anchor))
             }
         // Check if hrange
         } else if range.chars().filter(|c| c.is_alphabetic()).count() == 0 {
@@ -128,7 +128,7 @@ impl From<String> for Cell {
             }
             Cell {
                 row : CellIndex::from((row, row_anchor)),
-                column : CellIndex::from((col as usize, col_anchor))
+                column : CellIndex::from((col, col_anchor))
             }
         }
     }

@@ -5,7 +5,7 @@ use crate::{
         evaluate_str, 
         value::Value, 
     }, 
-    parser::ast::{Expr, Error as ExcelError},  
+    parser::ast::Error as ExcelError,  
 }; 
 use excel_emulator_macro::function; 
 use chrono::{Months, naive::NaiveDate, Datelike}; 
@@ -226,11 +226,9 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
                 if eval {
                     keep_index.push(y); 
                 }
-            } else {
-                if ! eval && keep_index.contains(&y) {
-                    keep_index.retain(|x| x != &y); 
-                }
-           }
+            } else if ! eval && keep_index.contains(&y) {
+                keep_index.retain(|x| x != &y); 
+            }
        } 
     }
     Value::from(sum_range.as_array()
@@ -258,11 +256,9 @@ fn countifs(args: Vec<Value>) -> Value {
                 if eval {
                     keep_index.push(y); 
                 }
-            } else {
-                if ! eval && keep_index.contains(&y) {
-                    keep_index.retain(|x| x != &y); 
-                }
-           }
+            } else if ! eval && keep_index.contains(&y) {
+                keep_index.retain(|x| x != &y); 
+            }
        } 
     }
     Value::from(keep_index.len())
@@ -303,13 +299,13 @@ fn parse_criteria(c: &str, cell: &Value) -> bool {
         "<>"
     } else if c.split("<=").count() > 1 {
         "<="
-    } else if c.split("<").count() > 1 {
+    } else if c.split('<').count() > 1 {
         "<"
     } else if c.split(">=").count() > 1 {
         ">="
-    } else if c.split(">").count() > 1 {
+    } else if c.split('>').count() > 1 {
         ">"
-    } else if c.split("=").count() > 1 {
+    } else if c.split('=').count() > 1 {
         "="
     } else {
         "" 
@@ -317,11 +313,11 @@ fn parse_criteria(c: &str, cell: &Value) -> bool {
     let lh: String; 
     let rh: String; 
     if ! op.is_empty() {
-        lh = c.split(op).collect::<Vec<&str>>()[1].replace("\"", "").to_string(); 
-        rh = cell.replace("\"", ""); 
+        lh = c.split(op).collect::<Vec<&str>>()[1].replace('\"', ""); 
+        rh = cell.replace('\"', ""); 
     } else {
-        lh = c.replace("\"", "").to_string(); 
-        rh = cell.replace("\"", ""); 
+        lh = c.replace('\"', ""); 
+        rh = cell.replace('\"', ""); 
         op = "="; 
     } 
     evaluate_str(format!("\"{}\"{}\"{}\"", lh, op, rh).as_str()).unwrap().as_bool()
@@ -430,7 +426,6 @@ fn xnpv(rate: Value, values: Value, dates: Value) -> Value {
     let start_date = *dates.get(0).unwrap(); 
     Value::from(
         values.as_array().iter().map(|x| x.as_num())
-        .into_iter()
         .zip(
             dates
             .into_iter()
@@ -448,7 +443,7 @@ fn yearfrac(start_date: Value, end_date: Value) -> Value {
     let end_date: NaiveDate = end_date.as_date(); 
     Value::from(
         (
-            ((end_date.year() as i32 - start_date.year() as i32) * 360) + 
+            ((end_date.year() - start_date.year()) * 360) + 
             (end_date.ordinal() as i32 - start_date.ordinal() as i32)
         ) as f64 / 360.0
     )    
@@ -460,7 +455,7 @@ fn datedif(start_date: Value, end_date: Value, unit: Value) -> Value {
     let end_date: NaiveDate = end_date.as_date(); 
     match unit.as_text().as_str() {
         "Y" | "y" => Value::from(end_date.year() - start_date.year()),
-        "M" | "m" => Value::from((end_date.year() as i32 - start_date.year() as i32)*12 + (end_date.month() as i32 - start_date.month() as i32)),
+        "M" | "m" => Value::from((end_date.year() - start_date.year())*12 + (end_date.month() as i32 - start_date.month() as i32)),
         "D" | "d" => Value::from(NaiveDate::signed_duration_since(end_date, start_date).num_days() as f64),
         "MD" | "md" => Value::from(end_date.day() as i32 - start_date.day() as i32), 
         "YM" | "ym" => Value::from(end_date.month() as i32 - start_date.month() as i32), 
@@ -546,7 +541,7 @@ fn search(find_text: Value, within_text: Value, start_num: Option<Value>) -> Val
     for _ in 0..start_num {
         within_text_chars.next(); 
     }
-    if let Some(idx) =  (&within_text_chars.collect::<String>()).find(&find_text) {
+    if let Some(idx) =  within_text_chars.collect::<String>().find(&find_text) {
         Value::from(idx + start_num + 1)
     } else {
         Value::Error(ExcelError::Value)
@@ -572,9 +567,7 @@ fn countif(range: Value, criteria: Value) -> Value {
             true => Some(v.as_num()), 
             false => None
         }) 
-        .collect::<Vec<f64>>()
-        .iter()
-        .count())
+        .collect::<Vec<f64>>().len())
 } 
 
 #[function]

@@ -16,7 +16,7 @@ use crate::errors::Error;
 
 macro_rules! syntax {
     ($func_name: ident, $tag_string: literal, $output_token: expr) => {
-        fn $func_name<'a>(s: &'a [u8]) -> IResult<&[u8], Token> {
+        fn $func_name(s: &[u8]) -> IResult<&[u8], Token> {
             map(tag($tag_string), |_| $output_token)(s)
         }
     };

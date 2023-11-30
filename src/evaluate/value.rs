@@ -49,8 +49,8 @@ impl Value {
 
     pub fn ensure_single(&self) -> Value {
         match self {
-            Value::Array2(arr2) => arr2[[0,0]].ensure_single().clone(), // assume single
-            Value::Array(arr) => arr.get(0).unwrap().ensure_single().clone(), // assume single
+            Value::Array2(arr2) => arr2[[0,0]].ensure_single(), // assume single
+            Value::Array(arr) => arr.get(0).unwrap().ensure_single(), // assume single
             c => c.clone() // TODO
         }
     }
@@ -145,7 +145,7 @@ impl fmt::Display for Value {
         match self {
             Value::Num(x) => { 
                 if x.is_nan() {
-                    write!(f, "{}", "0") 
+                    write!(f, "0") 
                 } else {
                     write!(f, "{}", x) 
                 } 

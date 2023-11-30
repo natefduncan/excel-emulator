@@ -100,14 +100,13 @@ pub fn evaluate_expr(expr: Expr) -> Result<Value, Error> {
                     Infix::GreaterThan => Value::from(a > b), 
                     Infix::GreaterThanEqual => Value::from(a >= b), 
                     Infix::Ampersand => {
-                        let value = if a.is_array() {
+                        if a.is_array() {
                             Value::from(a.as_array().into_iter().map(|x| Value::from(format!("{}{}", x.as_text(), b.as_text()))).collect::<Vec<Value>>())
                         } else if b.is_array() {
                             Value::from(b.as_array().into_iter().map(|x| Value::from(format!("{}{}", a.as_text(), x.as_text()))).collect::<Vec<Value>>())
                         } else {
                             Value::from(format!("{}{}", a.as_text(), b.as_text()))
-                        }; 
-                        value
+                        }
                     },
                 }
             }
