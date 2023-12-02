@@ -1,3 +1,5 @@
+// Range is only used in formulas and includes anchors ($). 
+// It can be single cell (A1) or multi cell (A1:B2)
 use std::fmt;
 
 use crate::{cell::CellIndex, errors::Error, 
@@ -185,7 +187,7 @@ impl Range {
 }
 
 fn format_range_part(cell_index: &CellIndex, anchor_type: &AnchorType) -> String {
-    let mut output = String::new(); 
+    let output = String::new(); 
     if (cell_index.row != 0) & (cell_index.column != 0) {
         let col_string : String = utils::column_number_to_letter(cell_index.column);
         match anchor_type {
@@ -225,7 +227,7 @@ impl fmt::Display for Range {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let start_format = format_range_part(&self.start_cell, &self.start_anchor); 
         if let Some(end_cell) = self.end_cell {
-            if let some(end_anchor) = &self.end_anchor {
+            if let Some(end_anchor) = &self.end_anchor {
                 let end_format = format_range_part(&end_cell, end_anchor); 
                 write!(f, "{}{}", start_format, end_format)
             } else {

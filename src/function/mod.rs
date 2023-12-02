@@ -428,7 +428,6 @@ fn xnpv(rate: Value, values: Value, dates: Value) -> Value {
         values.as_array().iter().map(|x| x.as_num())
         .zip(
             dates
-            .into_iter()
         ).fold(0.0, |s, (value, date)| {
             let days = NaiveDate::signed_duration_since(date, start_date).num_days() as f64; 
             s + (value / ((1.0+rate).powf(days / 365.0)))
@@ -472,7 +471,7 @@ fn pmt(rate: Value, nper: Value, pv: Value, fv: Option<Value>, f_type: Option<Va
     let fv = fv.unwrap_or_else(|| Value::from(0.0)).as_num(); 
     let f_type = f_type.unwrap_or_else(|| Value::from(0.0)).as_num();
     let value = rate*(fv*-1.0+pv*(1.0+rate).powf(nper))/((1.0+rate*f_type)*(1.0-(1.0+rate).powf(nper)));
-    if value == f64::INFINITY || value == f64::NEG_INFINITY {
+    if value.is_infinite() {
         Value::Error(ExcelError::Num)
     } else {
         Value::from(value)
