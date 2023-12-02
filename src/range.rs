@@ -184,6 +184,42 @@ impl Range {
             self.num_cols(),
         )
     }
+
+    pub fn offset(&mut self, offset: (i32, i32)) {
+        // Start cell
+        if (self.start_anchor == AnchorType::Row) |
+            (self.start_anchor == AnchorType::None) {
+                // Change column
+                if !self.start_cell.is_vrange() {
+                    self.start_cell.column = (self.column() as i32 + offset.1) as usize;
+                }
+            }
+        if (self.start_anchor == AnchorType::Column) | 
+            (self.start_anchor == AnchorType::None) {
+                // Change row
+                if !self.start_cell.is_hrange() {
+                    self.start_cell.row = (self.row() as i32 + offset.0) as usize;
+                }
+           }
+
+        // End cell
+        if let Some(mut end_cell) = self.end_cell {
+            if (self.end_anchor == Some(AnchorType::Row)) |
+                (self.end_anchor == Some(AnchorType::None)) {
+                    // Change column
+                    if !end_cell.is_vrange() {
+                        end_cell.column = (self.column() as i32 + offset.1) as usize;
+                    }
+                }
+            if (self.end_anchor == Some(AnchorType::Column)) | 
+                (self.end_anchor == Some(AnchorType::None)) {
+                    // Change row
+                    if !end_cell.is_hrange() {
+                        end_cell.row = (self.row() as i32 + offset.0) as usize;
+                    }
+               }
+        }
+    }
 }
 
 fn format_range_part(cell_index: &CellIndex, anchor_type: &AnchorType) -> String {

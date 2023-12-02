@@ -2,9 +2,18 @@ use std::fmt;
 use std::cmp::Ordering; 
 use std::hash::{Hasher, Hash}; 
 
-use crate::cell::Cell;
+use crate::{
+    cell::Cell,
+    sheet::SheetName, 
+}; 
 
 #[derive(Clone, Copy, Eq)]
+pub struct Reference {
+    pub sheet_name: String, 
+    pub range: Range,
+}
+
+
 pub struct Reference {
     pub start_cell : Cell, 
     pub end_cell : Option<Cell>
@@ -118,54 +127,6 @@ impl fmt::Debug for Reference {
 }
 
 impl Reference { 
-    pub fn row(&self) -> usize {
-        self.start_cell.row.index
-    }
-
-    pub fn column(&self) -> usize {
-        self.start_cell.column.index
-    }
-
-    pub fn is_single_cell(&self) -> bool {
-        self.end_cell.is_none() && !self.start_cell.is_hrange() && !self.start_cell.is_vrange()
-    }
-
-    pub fn is_multi_cell(&self) -> bool {
-        self.end_cell.is_some() || self.start_cell.is_hrange() || self.start_cell.is_vrange()
-    }
-
-    pub fn is_hrange(&self) -> bool {
-        self.start_cell.is_hrange()
-    }
-
-    pub fn is_vrange(&self) -> bool {
-        self.start_cell.is_vrange()
-    }
-
-    pub fn num_rows(&self) -> usize {
-        if self.is_multi_cell() {
-            if self.start_cell.is_vrange() {
-                usize::MAX
-            } else {
-                self.end_cell.as_ref().unwrap().row.index - self.start_cell.row.index + 1 
-            }
-        } else {
-            1
-        }
-    }
-
-    pub fn num_cols(&self) -> usize {
-        if self.is_multi_cell() {
-            if self.start_cell.is_hrange() {
-                usize::MAX
-            } else {
-                self.end_cell.as_ref().unwrap().column.index - self.start_cell.column.index + 1
-            }
-        } else {
-            1
-        }
-    }
-
     pub fn get_dimensions(&self) -> (usize, usize, usize, usize) {
         (
             self.row(),
