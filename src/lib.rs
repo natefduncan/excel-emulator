@@ -6,6 +6,7 @@ pub mod tree;
 pub mod utils;
 //pub mod workbook; 
 pub mod cell; 
+pub mod sheet; 
 pub mod range; 
 //pub mod reference; 
 //pub mod dependency; 

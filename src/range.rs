@@ -15,6 +15,7 @@ pub enum AnchorType {
 
 #[derive(Debug, Clone, Eq)]
 pub struct Range {
+    pub sheet_name: Option<String>, 
     pub start_cell: CellIndex, 
     pub start_anchor: AnchorType, 
     pub end_cell: Option<CellIndex>,
@@ -32,10 +33,17 @@ impl PartialEq for Range {
 
 impl From<String> for Range {
     fn from(a1 : String) -> Range {
+        let mut split = a1.split("!"); 
+        let sheet_name: Option<String> = if let Some(sheet_name) = split.next() {
+            Some(sheet_name.to_string())
+        } else {
+            None
+        }; 
         if !a1.contains(':') {
             // Single Cell (A1)
             let Ok((start_cell, start_anchor)) = parse_range_part(a1) else { todo!() }; 
             Range {
+                sheet_name: None, 
                 start_cell, 
                 start_anchor,
                 end_cell: None,
@@ -48,7 +56,7 @@ impl From<String> for Range {
             let c2: String = cells_split.remove(0); 
             let Ok((start_cell, start_anchor)) = parse_range_part(c1) else { todo!() }; 
             let Ok((end_cell, end_anchor)) = parse_range_part(c2) else { todo!() }; 
-            Range { start_cell, start_anchor, end_cell: Some(end_cell), end_anchor: Some(end_anchor) }
+            Range { sheet_name, start_cell, start_anchor, end_cell: Some(end_cell), end_anchor: Some(end_anchor) }
         }
     }
 }
@@ -261,16 +269,22 @@ fn format_range_part(cell_index: &CellIndex, anchor_type: &AnchorType) -> String
 
 impl fmt::Display for Range {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut rng_string = String::new(); 
         let start_format = format_range_part(&self.start_cell, &self.start_anchor); 
         if let Some(end_cell) = self.end_cell {
             if let Some(end_anchor) = &self.end_anchor {
                 let end_format = format_range_part(&end_cell, end_anchor); 
-                write!(f, "{}{}", start_format, end_format)
+                rng_string = format!("{}{}", start_format, end_format); 
             } else {
                 panic!("End anchor set when no end cell"); 
             }
         } else {
-            write!(f, "{}", start_format)
+            rng_string = format!("{}", start_format); 
+        }
+        if let Some(sheet_name) = &self.sheet_name {
+            write!(f, "{}!{}", sheet_name, rng_string)
+        } else {
+            write!(f, "{}", rng_string)
         }
     }
 }
