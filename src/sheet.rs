@@ -2,15 +2,24 @@ use ndarray::Array2;
 use crate::cell::Cell; 
 use crate::range::Range; 
 
+// A page or tab within a spreadsheet
 pub struct Sheet {
-    pub name: String, 
-    pub cells: Array2<Cell>
+    pub properties: SheetProperties, 
+    pub start_row: usize, 
+    pub start_column: usize, 
+    pub data: Array2<Cell>, 
+}
+
+pub struct SheetProperties {
+    pub title: String, 
+    pub index: usize, 
+    pub sheet_id: usize, 
 }
 
 impl Sheet {
-    fn get_range(&self, a1: &str) -> Range {
+    pub fn get_range(&self, a1: &str) -> Range {
         let mut range = Range::from(a1); 
-        range.sheet_name = Some(self.name.clone()); 
+        range.sheet_name = Some(self.properties.title.clone()); 
         range
      }
 }
