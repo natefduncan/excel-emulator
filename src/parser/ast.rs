@@ -77,7 +77,7 @@ impl From<bool> for Expr {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Error {
     Null,
     Div, 

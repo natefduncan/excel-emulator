@@ -15,7 +15,7 @@ type Array2Type = Array2<Value>;
 type DateType = NaiveDate; 
 type ErrorType = Error; 
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Hash)]
 pub enum Value { 
     Num(NumType), 
     Bool(BoolType), 

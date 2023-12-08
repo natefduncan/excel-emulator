@@ -60,7 +60,7 @@ impl From<(usize, usize)> for CellIndex {
 }
 
 // Individual cell on a sheet
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Cell {
     index: CellIndex, 
     value: Value, 
