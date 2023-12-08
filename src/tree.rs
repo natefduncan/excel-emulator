@@ -1,5 +1,6 @@
 use petgraph::{
-    stable_graph::{StableGraph, EdgeIndex, NodeIndex}
+    stable_graph::{StableGraph, EdgeIndex, NodeIndex}, 
+    algo::toposort
 };
 use thiserror::Error; 
 
@@ -41,6 +42,16 @@ pub fn remove_node(tree: &mut Tree, node_id: NodeId) {
 
 pub fn remove_edge(tree: &mut Tree, edge_id: EdgeId) {
     tree.remove_edge(edge_id); 
+}
+
+pub fn get_order(tree: &Tree) -> Vec<NodeIndex> {
+    match toposort(tree, None) {
+        Ok(order) => {
+            order
+            // order.into_iter().rev().collect::<Vec<CellId>>()
+        }, 
+        Err(e) => panic!("{:?}", e) 
+    }
 }
 
 #[cfg(test)]
