@@ -1,4 +1,5 @@
 use chrono::{Duration, NaiveDate}; 
+use ordered_float::OrderedFloat; 
 use std::fmt; 
 use std::cmp::{Eq, PartialEq, PartialOrd, Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign};  
@@ -7,7 +8,7 @@ use ndarray::Array2;
 use crate::parser::ast::Error;
 use crate::utils::excel_to_date; 
 
-type NumType = f64;
+type NumType = OrderedFloat<f64>;
 type BoolType = bool;
 type TextType = String; 
 type ArrayType = Vec<Value>;
@@ -27,9 +28,10 @@ pub enum Value {
     Empty
 }
 
-impl From<f64> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
-impl From<i32> for Value { fn from(f: i32) -> Value { Value::Num(f as f64) }}
-impl From<usize> for Value { fn from(f: usize) -> Value { Value::Num(f as f64) }}
+impl From<f64> for Value { fn from(f: f64) -> Value { Value::Num(OrderedFloat(f)) }}
+impl From<NumType> for Value { fn from(f: NumType) -> Value { Value::Num(f) }}
+impl From<i32> for Value { fn from(f: i32) -> Value { Value::from(f as f64) }}
+impl From<usize> for Value { fn from(f: usize) -> Value { Value::from(f as f64) }}
 impl From<bool> for Value { fn from(b: BoolType) -> Value { Value::Bool(b) }}
 impl From<String> for Value { fn from(s: TextType) -> Value { Value::Text(s) }}
 impl From<&str> for Value { fn from(s: &str) -> Value { Value::Text(s.to_string()) }}
@@ -55,29 +57,35 @@ impl Value {
         }
     }
 
+    pub fn as_float(&self) -> f64 {
+        self.as_num().into_inner()
+    }
+
     pub fn as_num(&self) -> NumType {
         match self {
             Value::Num(x) => {
                 if x.is_nan() {
-                    0.0 
+                    OrderedFloat(0.0)
                 } else {
                     *x
                 }
             },
-            Value::Text(t) => t.parse::<NumType>().unwrap(), 
+            Value::Text(t) => OrderedFloat(t.parse::<f64>().unwrap()), 
             Value::Bool(x) => {
                 match x {
-                    true => 1.0, 
-                    false => 0.0
+                    true => OrderedFloat(1.0), 
+                    false => OrderedFloat(0.0)
                 }
             }, 
             Value::Array2(arr2) => { // Assume single cell
                 arr2[[0,0]].as_num()
             }, 
-            Value::Empty => 0.0, 
+            Value::Empty => OrderedFloat(0.0), 
             _ => panic!("{} cannot be converted to a number.", self)
         }
     }
+
+
 
     pub fn as_bool(&self) -> BoolType {
         match self {
@@ -111,7 +119,7 @@ impl Value {
             Value::Array2(arr2) => {
                 arr2[[0,0]].as_date()
             }, 
-            Value::Num(n) => excel_to_date(*n), 
+            Value::Num(n) => excel_to_date(n.into_inner()), 
             _ => panic!("{} cannot be converted to a date.", self)
         }
     }
@@ -235,9 +243,9 @@ impl Add for Value {
             Value::Num(x) => Value::from(x + other.ensure_single().as_num()), 
             Value::Text(ref x) => Value::from(format!("{}{}", x, other.ensure_single().as_text())),
             Value::Bool(_) => Value::from(self.as_num() + other.ensure_single().as_num()), 
-            Value::Empty => Value::from(0.0 + other.ensure_single().as_num()), 
+            Value::Empty => Value::from(OrderedFloat(0.0) + other.ensure_single().as_num()), 
             Value::Date(dt) => {
-                Value::from(dt.checked_add_signed(Duration::days(other.ensure_single().as_num() as i64)).unwrap())
+                Value::from(dt.checked_add_signed(Duration::days(other.ensure_single().as_float() as i64)).unwrap())
             }, 
             Value::Error(_) => self, 
             _ => panic!("{} cannot be added to {}.", other, self)
@@ -261,13 +269,13 @@ impl Sub for Value {
         match self.ensure_single() {
             Value::Num(x) => Value::from(x - other.ensure_single().as_num()), 
             Value::Bool(_) => Value::from(self.as_num() - other.ensure_single().as_num()), 
-            Value::Empty => Value::from(0.0 - other.ensure_single().as_num()), 
+            Value::Empty => Value::from(OrderedFloat(0.0) - other.ensure_single().as_num()), 
             Value::Date(dt) => {
                 let other_single = other.ensure_single(); 
                 if other_single.is_date() {
                         Value::from(NaiveDate::signed_duration_since(dt, other_single.as_date()).num_days() as f64)
                 } else {
-                    Value::from(dt.checked_sub_signed(Duration::days(other_single.as_num() as i64)).unwrap())
+                    Value::from(dt.checked_sub_signed(Duration::days(other_single.as_float() as i64)).unwrap())
                 }
             }, 
             Value::Error(_) => self, 
@@ -282,7 +290,7 @@ impl Mul for Value {
         match self.ensure_single() {
             Value::Num(x) => Value::from(x * other.ensure_single().as_num()), 
             Value::Bool(_) => Value::from(self.as_num() * other.ensure_single().as_num()), 
-            Value::Empty => Value::from(0.0 * other.ensure_single().as_num()), 
+            Value::Empty => Value::from(OrderedFloat(0.0) * other.ensure_single().as_num()), 
             Value::Error(_) => self, 
             // TODO
             _ => panic!("{} cannot be multiplied by {}.", self, other)
