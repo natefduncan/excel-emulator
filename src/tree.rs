@@ -11,6 +11,7 @@ use std::fmt;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct CellNode {
     pub cell_index: CellIndex, 
+    pub sheet_id: usize, 
     pub dirty: bool
 }
 
