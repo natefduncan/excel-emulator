@@ -8,7 +8,7 @@ use crate::parser::ast::Expr;
 
 // Coordinates for a cell on a sheet,
 // starting with 0
-#[derive(Clone, Debug, Copy, Eq, Hash)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
 pub struct CellIndex {
     pub row : usize, 
     pub column : usize 
@@ -25,13 +25,6 @@ impl CellIndex {
 
     pub fn as_tuple(self) -> (usize, usize) {
         (self.row, self.column)
-    }
-}
-
-impl PartialEq for CellIndex {
-    fn eq(&self, other: &Self) -> bool {
-        (self.row == other.row) &
-        (self.column == other.column) 
     }
 }
 
