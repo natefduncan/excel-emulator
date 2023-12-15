@@ -5,11 +5,11 @@ use petgraph::{
     prelude::Dfs,
 };
 
-use crate::cell::Cell; 
+use crate::cell::CellIndex; 
 use std::fmt; 
 
 pub struct DependencyTree {
-    tree: DiGraphMap<Cell, u8>
+    tree: DiGraphMap<CellIndex, u8>
 }
 
 /*
@@ -28,52 +28,52 @@ impl DependencyTree {
         DependencyTree { tree: DiGraphMap::new() }
     }
 
-    pub fn add_cell(&mut self, cell: Cell) {
-        self.tree.add_node(cell); 
+    pub fn add_cell(&mut self, cell_index: CellIndex) {
+        self.tree.add_node(cell_index); 
     }
 
-    pub fn cell_exists(&self, cell: &Cell) -> bool {
-        self.tree.contains_node(*cell)
+    pub fn cell_exists(&self, cell_index: &CellIndex) -> bool {
+        self.tree.contains_node(*cell_index)
     }
 
-    pub fn add_cell_if_missing(&mut self, cell: &Cell) {
-        if self.tree.contains_node(*cell) {
-            self.add_cell(*cell); 
+    pub fn add_cell_if_missing(&mut self, cell_index: &CellIndex) {
+        if self.tree.contains_node(*cell_index) {
+            self.add_cell(*cell_index); 
         }
     }
 
-    pub fn add_precedent(&mut self, precedent: &Cell, cell: &Cell) {
+    pub fn add_precedent(&mut self, precedent: &CellIndex, cell_index: &CellIndex) {
         self.add_cell_if_missing(precedent);
-        self.add_cell_if_missing(cell);
-        if !self.tree.contains_edge(*cell, *precedent) {
-            self.tree.add_edge(*precedent, *cell, 0); 
+        self.add_cell_if_missing(cell_index);
+        if !self.tree.contains_edge(*cell_index, *precedent) {
+            self.tree.add_edge(*precedent, *cell_index, 0); 
         }
    } 
 
-    pub fn is_precedent_of(&self, cell1: &Cell, cell2: &Cell) -> bool {
-        self.tree.contains_edge(*cell1, *cell2)
+    pub fn is_precedent_of(&self, cell_index1: &CellIndex, cell_index2: &CellIndex) -> bool {
+        self.tree.contains_edge(*cell_index1, *cell_index2)
     }
 
-    pub fn is_dependent_of(&self, cell1: &Cell, cell2: &Cell) -> bool {
-        self.tree.contains_edge(*cell2, *cell1) 
+    pub fn is_dependent_of(&self, cell_index1: &CellIndex, cell_index2: &CellIndex) -> bool {
+        self.tree.contains_edge(*cell_index2, *cell_index1) 
     } 
 
-    pub fn get_order(&self) -> Vec<Cell> {
+    pub fn get_order(&self) -> Vec<CellIndex> {
         match toposort(&self.tree, None) {
             Ok(order) => {
                 order
-                // order.into_iter().rev().collect::<Vec<Cell>>()
+                // order.into_iter().rev().collect::<Vec<CellIndex>>()
             }, 
             Err(e) => panic!("{:?}", e) 
         } 
     } 
 
-    pub fn mark_for_recalculation(&mut self, root: &Cell) {
-        let mut dfs = Dfs::new(&self.tree, root.clone());
-        while let Some(mut node_id) = dfs.next(&self.tree) {
-            node_id.dirty = true; 
-        }
-    }
+    //pub fn mark_for_recalculation(&mut self, root: &CellIndex) {
+        //let mut dfs = Dfs::new(&self.tree, root.clone());
+        //while let Some(mut node_id) = dfs.next(&self.tree) {
+            //node_id.dirty = true; 
+        //}
+    //}
 }
 
 impl fmt::Display for DependencyTree {

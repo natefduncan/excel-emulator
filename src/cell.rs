@@ -1,5 +1,6 @@
 
 use std::cmp::Ordering; 
+use std::fmt; 
 use std::hash::Hash;
 
 use crate::evaluate::value::Value;
@@ -59,10 +60,16 @@ impl From<(usize, usize)> for CellIndex {
     }
 }
 
+impl fmt::Display for CellIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{},{}", self.row, self.column)
+    }
+}
+
 // Individual cell on a sheet
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub struct Cell {
-    index: CellIndex, 
-    value: Value, 
-    function: Option<Expr>
+    pub index: CellIndex, 
+    pub value: Value, 
+    pub function: Option<Expr>
 }
