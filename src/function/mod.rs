@@ -16,7 +16,7 @@ pub trait Function {
 
 #[function]
 fn exponent(a: Value, b: Value) -> Value {
-    Value::from(a.as_num().powf(b.as_num()))
+    Value::from(a.as_float().powf(b.as_float()))
 }
 
 #[function]
@@ -35,7 +35,7 @@ fn sum(args: Vec<Value>) -> Value {
                 }
             }
         } else {
-            s += Value::from(v.as_num())
+            s += Value::from(v.as_float())
         }
         s
     })
@@ -54,12 +54,12 @@ fn average(args: Vec<Value>) -> Value {
                 }
             }
         } else {
-            sum_values.push(Value::from(arg.as_num()));
+            sum_values.push(Value::from(arg.as_float()));
             count += 1.0; 
         }
    }
     let average = sum_values.into_iter().fold(0.0, |mut s, v| {
-        s += v.as_num();
+        s += v.as_float();
         s
     }) / count;
     Value::from(average)
@@ -147,7 +147,7 @@ fn min(args: Vec<Value>) -> Value {
 fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value {
     let lookup_value = lookup_value.ensure_single(); 
     let mut lookup_array_mut = lookup_array.as_array();
-    if match_type.as_num() == -1.0 {
+    if match_type.as_float() == -1.0 {
         // Smallest value that is greater than or equal to the lookup-value.
         // Lookup array placed in descending order.
         lookup_array_mut.sort_by(|a, b| b.cmp(a)); // Descending Order
@@ -155,7 +155,7 @@ fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value
             Some(v) => { Value::from(v.0 + 1) },
             _ => Value::Error(ExcelError::NA)
         }
-    } else if match_type.as_num() == 0.0 {
+    } else if match_type.as_float() == 0.0 {
         match lookup_array_mut.into_iter().position(|v| v == lookup_value) {
             Some(v) => { Value::from(v + 1) }, 
             _ => Value::Error(ExcelError::NA)
@@ -173,14 +173,14 @@ fn matchfn(lookup_value: Value, lookup_array: Value, match_type: Value) -> Value
 
 #[function]
 fn date(year: Value, month: Value, day: Value) -> Value {
-   Value::from(NaiveDate::from_ymd(year.as_num() as i32, month.as_num() as u32, day.as_num() as u32))
+   Value::from(NaiveDate::from_ymd(year.as_float() as i32, month.as_float() as u32, day.as_float() as u32))
 }
 
 
 #[function]
 // FIXME: significance
 fn floor(x: Value, _significance: Value) -> Value {
-    Value::from(math::round::floor(x.as_num(), 0))
+    Value::from(math::round::floor(x.as_float(), 0))
 }
 
 pub struct Iferror {
@@ -203,10 +203,10 @@ fn eomonth(start_date: Value, months: Value) -> Value {
     let start_date: NaiveDate = start_date.as_date(); 
     let bom = NaiveDate::from_ymd(start_date.year(), start_date.month(), 1);
     let eom: NaiveDate; 
-    if months.as_num() > 0.0 {
-        eom = bom.checked_add_months(Months::new((months.as_num()+1.0) as u32)).unwrap(); 
-    } else if months.as_num() < 0.0 {
-        eom = bom.checked_sub_months(Months::new((months.as_num()*-1.0-1.0) as u32)).unwrap(); 
+    if months.as_float() > 0.0 {
+        eom = bom.checked_add_months(Months::new((months.as_float()+1.0) as u32)).unwrap(); 
+    } else if months.as_float() < 0.0 {
+        eom = bom.checked_sub_months(Months::new((months.as_float()*-1.0-1.0) as u32)).unwrap(); 
     } else {
         eom = bom.checked_add_months(Months::new(1)).unwrap(); 
     }
@@ -235,7 +235,7 @@ fn sumifs(sum_range: Value, args: Vec<Value>) -> Value {
         .into_iter()
         .enumerate()
         .filter_map(|(i, v)| match keep_index.contains(&i) {
-            true => Some(v.as_num()), 
+            true => Some(v.as_float()), 
             false => None
         })
         .collect::<Vec<f64>>()
@@ -285,7 +285,7 @@ fn sumif(range: Value, criteria: Value, sum_range: Option<Value>) -> Value {
         .into_iter()
         .enumerate()
         .filter_map(|(i, v)| match keep_index.contains(&i) {
-            true => Some(v.as_num()), 
+            true => Some(v.as_float()), 
             false => None
         }) 
         .collect::<Vec<f64>>()
@@ -343,7 +343,7 @@ fn averageif(range: Value, criteria: Value, average_range: Option<Value>) -> Val
         .into_iter()
         .enumerate()
         .filter_map(|(i, v)| match keep_index.contains(&i) {
-            true => Some(v.as_num()), 
+            true => Some(v.as_float()), 
             false => None
         }).collect::<Vec<f64>>(); 
     Value::from(average_range_filter
@@ -371,7 +371,7 @@ fn averageifs(average_range: Value, args: Vec<Value>) -> Value {
         .into_iter()
         .enumerate()
         .filter_map(|(i, v)| match keep_index.contains(&i) {
-            true => Some(v.as_num()), 
+            true => Some(v.as_float()), 
             false => None
         }).collect::<Vec<f64>>(); 
     Value::from(average_range_filter
@@ -402,7 +402,7 @@ fn xirrfunc(values: Value, dates: Value) -> Value {
             dates
             .as_array()
             .iter()
-        ).map(|(v, d)| xirr::Payment { amount: v.as_num(), date: d.as_date() })
+        ).map(|(v, d)| xirr::Payment { amount: v.as_float(), date: d.as_date() })
         .collect(); 
     match xirr::compute(&payments) {
         Ok(v) => Value::from(v), 
@@ -421,11 +421,11 @@ fn iffunc(condition: Value, a: Value, b: Value) -> Value {
 
 #[function]
 fn xnpv(rate: Value, values: Value, dates: Value) -> Value {
-    let rate: f64 = rate.as_num(); 
+    let rate: f64 = rate.as_float(); 
     let dates: Vec<NaiveDate> = dates.as_array().iter().map(|x| x.as_date()).collect(); 
     let start_date = *dates.get(0).unwrap(); 
     Value::from(
-        values.as_array().iter().map(|x| x.as_num())
+        values.as_array().iter().map(|x| x.as_float())
         .zip(
             dates
         ).fold(0.0, |s, (value, date)| {
@@ -465,11 +465,11 @@ fn datedif(start_date: Value, end_date: Value, unit: Value) -> Value {
 
 #[function]
 fn pmt(rate: Value, nper: Value, pv: Value, fv: Option<Value>, f_type: Option<Value>) -> Value {
-    let rate = rate.as_num();
-    let nper = nper.as_num();
-    let pv = pv.as_num();
-    let fv = fv.unwrap_or_else(|| Value::from(0.0)).as_num(); 
-    let f_type = f_type.unwrap_or_else(|| Value::from(0.0)).as_num();
+    let rate = rate.as_float();
+    let nper = nper.as_float();
+    let pv = pv.as_float();
+    let fv = fv.unwrap_or_else(|| Value::from(0.0)).as_float(); 
+    let f_type = f_type.unwrap_or_else(|| Value::from(0.0)).as_float();
     let value = rate*(fv*-1.0+pv*(1.0+rate).powf(nper))/((1.0+rate*f_type)*(1.0-(1.0+rate).powf(nper)));
     if value.is_infinite() {
         Value::Error(ExcelError::Num)
@@ -504,8 +504,8 @@ fn counta(args: Vec<Value>) -> Value {
 //FIXME
 #[function]
 fn rounddown(x: Value, num_digits: Value) -> Value {
-    let x: f64 = x.as_num(); 
-    let num_digits: f64 = num_digits.as_num(); 
+    let x: f64 = x.as_float(); 
+    let num_digits: f64 = num_digits.as_float(); 
     if num_digits > 0.0 {
         Value::from(((x * 10.0_f64.powf(num_digits)) as i64) as f64 / 10.0_f64.powf(num_digits))
     } else if num_digits < 0.0 {
@@ -518,8 +518,8 @@ fn rounddown(x: Value, num_digits: Value) -> Value {
 //FIXME
 #[function]
 fn roundup(x: Value, num_digits: Value) -> Value {
-    let x: f64 = x.as_num(); 
-    let num_digits: f64 = num_digits.as_num(); 
+    let x: f64 = x.as_float(); 
+    let num_digits: f64 = num_digits.as_float(); 
     if num_digits > 0.0 {
         Value::from((((x * 10.0_f64.powf(num_digits)) as i64 + x.signum() as i64) as f64) / 10.0_f64.powf(num_digits))
     } else if num_digits < 0.0 {
@@ -535,7 +535,7 @@ fn roundup(x: Value, num_digits: Value) -> Value {
 fn search(find_text: Value, within_text: Value, start_num: Option<Value>) -> Value {
     let find_text = find_text.as_text().to_lowercase(); 
     let within_text = within_text.as_text().to_lowercase(); 
-    let start_num = start_num.unwrap_or(Value::from(1.0)).as_num() as usize - 1; 
+    let start_num = start_num.unwrap_or(Value::from(1.0)).as_float() as usize - 1; 
     let mut within_text_chars = within_text.chars(); 
     for _ in 0..start_num {
         within_text_chars.next(); 
@@ -563,7 +563,7 @@ fn countif(range: Value, criteria: Value) -> Value {
         .into_iter()
         .enumerate()
         .filter_map(|(i, v)| match keep_index.contains(&i) {
-            true => Some(v.as_num()), 
+            true => Some(v.as_float()), 
             false => None
         }) 
         .collect::<Vec<f64>>().len())
@@ -596,7 +596,7 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_num(), 530.0); 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H9")?[[0,0]].as_float(), 530.0); 
         //Ok(())
     //}
 
@@ -640,8 +640,8 @@ mod tests {
 
     #[test]
     fn test_pmt() -> Result<(), Error> {
-        assert!((-1037.03 - evaluate_str("PMT(0.08/12, 10, 10000)")?.as_num()).abs() < 0.01); 
-        assert!((-1030.16 - evaluate_str("PMT(0.08/12, 10, 10000, 0, 1)")?.as_num()).abs() < 0.01); 
+        assert!((-1037.03 - evaluate_str("PMT(0.08/12, 10, 10000)")?.as_float()).abs() < 0.01); 
+        assert!((-1030.16 - evaluate_str("PMT(0.08/12, 10, 10000, 0, 1)")?.as_float()).abs() < 0.01); 
         Ok(())
     }
 
@@ -718,7 +718,7 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_num(), 11.0); 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H3")?[[0,0]].as_float(), 11.0); 
         //Ok(())
     //}
 
@@ -757,7 +757,7 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_num(), 2.0); 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H5")?[[0,0]].as_float(), 2.0); 
         //Ok(())
     //}
 
@@ -766,7 +766,7 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_num(), 2.0); 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H8")?[[0,0]].as_float(), 2.0); 
         //Ok(())
     //}
 
@@ -775,7 +775,7 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_num()).abs() < 0.01); 
+        //assert!((0.3340 - book.resolve_str_ref("Sheet1!H4")?[[0,0]].as_float()).abs() < 0.01); 
         //Ok(())
     //}
 
@@ -784,7 +784,7 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_num(), 10.0); 
+        //assert_eq!(book.resolve_str_ref("Sheet1!H6")?[[0,0]].as_float(), 10.0); 
         //Ok(())
     //}
     
@@ -800,13 +800,13 @@ mod tests {
         //let mut book = Book::from("assets/functions.xlsx"); 
         //book.load(false).unwrap(); 
         //book.calculate(false, false)?; 
-        //assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_num()).abs() < 0.01); 
+        //assert!((7.657 - book.resolve_str_ref("Sheet1!H7")?[[0,0]].as_float()).abs() < 0.01); 
         //Ok(())
     //}
 
     #[test]
     fn test_yearfrac() -> Result<(), Error> {
-        assert!((0.58055 - evaluate_str("YEARFRAC(DATE(2012, 1, 1), DATE(2012, 7, 30))")?.as_num() < 0.01)); 
+        assert!((0.58055 - evaluate_str("YEARFRAC(DATE(2012, 1, 1), DATE(2012, 7, 30))")?.as_float() < 0.01)); 
         Ok(())
     }
 }
