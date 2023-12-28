@@ -1,6 +1,7 @@
 use std::fmt;  
+use ordered_float::OrderedFloat; 
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Expr {
     Literal(Literal),
     Prefix(Prefix, Box<Expr>),
@@ -104,16 +105,16 @@ impl fmt::Display for Error {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Literal {
-    Number(f64),
+    Number(OrderedFloat<f64>),
     Boolean(bool),
     Text(String),
 }
 
 impl From<f64> for Literal {
     fn from(f: f64) -> Literal {
-        Literal::Number(f)
+        Literal::Number(OrderedFloat::from(f))
     }
 }
 

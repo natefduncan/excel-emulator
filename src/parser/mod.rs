@@ -6,6 +6,7 @@ use nom::sequence::{preceded, delimited, pair, terminated};
 use nom::*;
 use nom::Err; 
 use nom::error::{Error as NomError, ErrorKind}; 
+use ordered_float::OrderedFloat; 
 
 pub mod ast; 
 
@@ -49,8 +50,8 @@ fn parse_literal(input: Tokens) -> IResult<Tokens, Literal> {
         Err(Err::Error(NomError::new(input, ErrorKind::Tag)))
     } else {
         match t1.tok[0].clone() {
-            Token::Integer(x) => Ok((i1, Literal::Number(x as f64))), 
-            Token::Float(x) => Ok((i1, Literal::Number(x))), 
+            Token::Integer(x) => Ok((i1, Literal::Number(OrderedFloat::from(x as f64)))), 
+            Token::Float(x) => Ok((i1, Literal::Number(OrderedFloat::from(x)))), 
             Token::Text(s) => Ok((i1, Literal::Text(s))),
             Token::Boolean(b) => Ok((i1, Literal::Boolean(b))),
             _ => Err(Err::Error(NomError::new(input, ErrorKind::Tag))),

@@ -15,6 +15,16 @@ pub struct CellNode {
     pub dirty: bool
 }
 
+impl From<(usize, CellIndex)> for CellNode {
+    fn from((sheet_id, cell_index): (usize, CellIndex)) -> CellNode {
+        CellNode {
+            cell_index,
+            sheet_id, 
+            dirty: false
+        }
+    }
+}
+
 impl fmt::Display for CellNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.cell_index)
@@ -82,7 +92,7 @@ impl DependencyTree {
     } 
 
     pub fn mark_for_recalculation(&mut self, root_node: &CellNode) {
-        let mut dfs = Dfs::new(&self.tree, root_node.clone());
+        let mut dfs = Dfs::new(&self.tree, *root_node);
         while let Some(mut node_id) = dfs.next(&self.tree) {
             node_id.dirty = true; 
         }

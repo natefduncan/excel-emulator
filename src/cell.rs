@@ -60,7 +60,7 @@ impl fmt::Display for CellIndex {
 }
 
 // Individual cell on a sheet
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cell {
     pub index: CellIndex, 
     pub value: Value, 

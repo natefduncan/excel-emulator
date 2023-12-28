@@ -1,9 +1,15 @@
 // Range is only used in formulas and includes anchors ($). 
 // It can be single cell (A1) or multi cell (A1:B2)
-use std::fmt;
+use std::{fmt, cell::RefCell};
+use std::sync::{Arc, Mutex}; 
 
-use crate::{cell::CellIndex, errors::Error, 
-    utils}; 
+
+use crate::{
+    cell::CellIndex, 
+    errors::Error, 
+    sheet::Sheet, 
+    utils
+}; 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnchorType {
@@ -22,6 +28,12 @@ pub struct Range {
     pub end_anchor: Option<AnchorType>, 
 }
 
+#[derive(Debug, Clone)]
+pub struct SheetRange<'a> {
+    pub sheet_ref: Arc<Mutex<&'a mut Sheet>>, 
+    pub range: Range
+}
+
 impl PartialEq for Range {
     fn eq(&self, other: &Self) -> bool {
         (self.start_cell == other.start_cell) &
@@ -31,7 +43,7 @@ impl PartialEq for Range {
     }
 }
 
-impl From<String> for Range {
+impl From<String> for Range  {
     fn from(a1 : String) -> Range {
         let mut split = a1.split("!"); 
         let sheet_name: Option<String> = if let Some(sheet_name) = split.next() {
@@ -43,7 +55,7 @@ impl From<String> for Range {
             // Single Cell (A1)
             let Ok((start_cell, start_anchor)) = parse_range_part(a1) else { todo!() }; 
             Range {
-                sheet_name: None, 
+                sheet_name, 
                 start_cell, 
                 start_anchor,
                 end_cell: None,
@@ -56,7 +68,7 @@ impl From<String> for Range {
             let c2: String = cells_split.remove(0); 
             let Ok((start_cell, start_anchor)) = parse_range_part(c1) else { todo!() }; 
             let Ok((end_cell, end_anchor)) = parse_range_part(c2) else { todo!() }; 
-            Range { sheet_name, start_cell, start_anchor, end_cell: Some(end_cell), end_anchor: Some(end_anchor) }
+            Range { sheet_name,  start_cell, start_anchor, end_cell: Some(end_cell), end_anchor: Some(end_anchor) }
         }
     }
 }
